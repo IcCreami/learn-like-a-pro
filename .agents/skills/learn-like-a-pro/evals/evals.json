@@ -1,0 +1,353 @@
+{
+  "skill_name": "learn-like-a-pro",
+  "evals": [
+    {
+      "id": 1,
+      "name": "beginner-ai-agent-learning",
+      "prompt": "我想学 AI Agent，但我是完全的小白，连 Agent 是什么都不知道。能一步步教我吗？",
+      "expected_output": "激活后先做诊断：按黄金规则#2一次只问一个问题，第一轮只问诊断第1问（\"你目前知道些什么\"），语气鼓励、不直接讲概念、不一次倒出全部内容；后续轮次逐个问完5问，再拆学习地图、费曼导入、苏格拉底检验、生成5个产物",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_first_question_only",
+          "description": "第一轮首答只问诊断第1问（\"你目前知道些什么\"或其同义改写），且明确等待用户回答后再继续，未一次性倒出5个问题"
+        },
+        {
+          "name": "no_concept_dump",
+          "description": "第一轮未直接讲解 Agent 概念（未出现\"Agent 是\"等定义式开头），遵循\"诊断优先、绝不跳过\""
+        },
+        {
+          "name": "no_condescension",
+          "description": "未出现直接否定语（\"你错了\"、\"不对\"、\"你怎么连这都不懂\"）；语气鼓励（\"太好了\"、\"没问题\"、\"从零开始\"之一）"
+        },
+        {
+          "name": "learning_map_planned",
+          "description": "回复中承诺了学习路径（\"一步步来\"、\"拆成小单元\"、\"我会带你\"之一），让用户知道后续有完整流程"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "first-skill-creation",
+      "prompt": "我看你刚给我讲了Skill是什么，现在我想自己写一个最简单的Skill试试看。你带我做",
+      "expected_output": "先做诊断（黄金规则4：绝不跳过）→ 拆解写Skill的最小单元 → 费曼导入（Motivation+Analogy）→ 引导动手并给出 SKILL.md 的具体格式指令（--- 开头 + name: 字段写法）",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_before_teaching",
+          "description": "动手教学前先做诊断（出现\"你目前知道些什么\"或\"先问你几个问题\"或诊断相关问题），不跳过诊断直接开讲"
+        },
+        {
+          "name": "guided_hands_on",
+          "description": "要求用户实际动手操作（\"新建一个文件夹\"、\"打开编辑器\"、\"先写第一行\"、\"你来写\"之一），且是具体可执行的指令"
+        },
+        {
+          "name": "teaches_skill_file_format",
+          "description": "教学中给出了 SKILL.md 的具体格式指令（\"第一行写 ---\"、\"下一行写 name:\"、\"写 description:\"之一），而非只说\"格式很简单到时候教你\""
+        },
+        {
+          "name": "scaffolding_guided_not_doing",
+          "description": "提供明确帮助级别（完整演示/填空/让用户先试之一），且语气是引导而非替用户代写（未出现\"我直接帮你写好\"等代做语句）"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "lost-and-confused-user",
+      "prompt": "我想学点新东西但是完全不知道学什么，感觉自己什么都不会，很迷茫。你能帮我吗？",
+      "expected_output": "按场景5流程：先情绪支持（正常化迷茫）→ 兴趣发现（3个引导问题）→ 根据回答推荐入门主题 → 确认后进入诊断5问。单轮首答允许只完成情绪支持+兴趣发现问题，主题推荐可等用户回答后给出",
+      "files": [],
+      "assertions": [
+        {
+          "name": "emotion_support",
+          "description": "先出现情绪支持语句（\"完全理解\"、\"这很正常\"、\"没关系\"、\"不急着\"之一），未出现催促或批评"
+        },
+        {
+          "name": "interest_discovery",
+          "description": "通过问题引导发现兴趣（\"最近有没有什么事情\"、\"平时刷视频\"、\"如果没有任何限制\"、\"想解决什么问题\"之一）"
+        },
+        {
+          "name": "no_premature_recommendation",
+          "description": "若用户尚未回答兴趣问题，不强行推荐具体主题（未在提问前就指定单一主题作为唯一出路）"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "resume-continue-learning",
+      "prompt": "继续学 AI Agent",
+      "expected_output": "检测到 my_learning/ai-agent/state.json 存在 → 加载 resume.md + state.json → 确认上次进度 → 直接进入知识构建，不重新问诊断5问",
+      "files": [],
+      "assertions": [
+        {
+          "name": "state_file_detected",
+          "description": "检查了 my_learning/ai-agent/ 下的 state.json（或读取了进度信息），没有从零开始重新诊断"
+        },
+        {
+          "name": "resume_confirmation",
+          "description": "向用户确认上次进度（\"上次我们学到了\"、\"上次学到\"、\"继续吗\"之一）"
+        },
+        {
+          "name": "no_repeat_diagnosis",
+          "description": "未重新依次问 5 个诊断问题（未出现\"你目前知道些什么\"的完整诊断轮询）"
+        },
+        {
+          "name": "needs_review_priority",
+          "description": "若 state.json 中存在 needs_review 单元，优先重学该单元；否则不要求此断言（条件断言）"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "no-filesystem-fallback",
+      "prompt": "我想学 Git，我是小白，什么都不会。另外说明一下：你现在处于一个无法写文件的对话环境。",
+      "expected_output": "正常走六步流程教学；明确承诺产物 fallback（无法写文件时在对话中输出完整产物文本并告知手动保存路径），教学不因环境受限而中断",
+      "files": [],
+      "assertions": [
+        {
+          "name": "fallback_mechanism_committed",
+          "description": "回复中明确说明 fallback 机制（\"代码块\"、\"手动保存\"、\"无法写文件\"、\"产物会输出\"之一），让用户知道产物不会丢"
+        },
+        {
+          "name": "save_instruction_given",
+          "description": "明确告知保存路径或方式（\"保存到 my_learning/git/\"、\"手动保存\"、\"文件名分别是\"之一）"
+        },
+        {
+          "name": "teaching_not_skipped",
+          "description": "产物说明后仍推进教学流程（诊断 + 类比讲解 + 实践引导之一），没有因无法写文件而跳过教学"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "multi-turn-full-journey",
+      "prompt": "【多轮对话模拟】你是一位 AI 学习教练。用户想学 Markdown，以下是 6 条连续的用户消息（模拟一个零基础小白从开始到学完第一个单元的全过程）。请对每一条消息分别给出你的回复，把 6 轮完整的对话（含你的所有回复）作为一个整体输出。\n\n用户消息 1：\"我想学 Markdown，我是小白，完全没接触过。能一步步教我吗？\"\n用户消息 2：\"我完全不懂 Markdown，只知道好像能用它写文档，别的就不知道了。\"\n用户消息 3：\"我想学它是因为想把自己的笔记整理好，能看懂别人写的 README。希望学完能自己写笔记。每天大概 30 分钟吧，喜欢有人一步步带着做。\"\n用户消息 4：\"好，就按你安排的学习地图来吧，从第一个开始。\"\n用户消息 5：\"哦我懂了，标题用 #，加粗用 **。我自己试了试，感觉掌握了。\"\n用户消息 6：\"学完了，挺有意思的！那今天先到这吧，我有点累了。\"",
+      "expected_output": "完整走六步流程的一部分：诊断5问（逐轮）→ 学习地图 → 费曼导入（Motivation→Analogy→Intuition→Definition）→ 苏格拉底检验（用户说\"懂了\"时不能直接信）→ 引导动手 → 主动回忆测试 → 单元结束更新产物与 state.json（或 fallback 输出）",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_first",
+          "description": "第一轮回复先做诊断（问\"你目前知道些什么\"或类似诊断问题），未直接开始讲 Markdown 语法"
+        },
+        {
+          "name": "learning_map_shown",
+          "description": "对话中出现了学习地图/单元拆解（\"拆成\"、\"第 1 个单元\"、\"我们分几步\"、编号列表之一），用户能看到整体路线"
+        },
+        {
+          "name": "analogy_before_definition",
+          "description": "教 Markdown 核心概念时先给类比（\"就像\"、\"说白了\"、\"好比\"之一）再给正式定义"
+        },
+        {
+          "name": "socratic_check_not_believe",
+          "description": "用户消息 5 说\"感觉掌握了\"时，没有直接说\"好的继续\"，而是用检验问题确认（\"用自己的话说一遍\"、\"如果遇到\"、\"举个例子\"、\"有什么区别\"之一）"
+        },
+        {
+          "name": "active_recall_test",
+          "description": "对话中出现主动回忆/自测环节（\"考你\"、\"测试\"、\"3 个问题\"、\"你来说说\"之一）"
+        },
+        {
+          "name": "no_condescension",
+          "description": "全程未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气鼓励"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "multi-turn-python-teaching",
+      "prompt": "【多轮对话模拟·换主题验证】你是一位 AI 学习教练。用户想学 Python，以下是 6 条连续的用户消息（模拟一个零基础小白从开始到学完第一个单元的全过程）。请对每一条消息分别给出你的回复，把 6 轮完整的对话（含你的所有回复）作为一个整体输出。\n\n用户消息 1：\"我想学 Python，我是小白，完全没接触过。能一步步教我吗？\"\n用户消息 2：\"我完全不懂 Python，只知道好像能用来做自动化、处理数据，别的就不知道了。\"\n用户消息 3：\"我想学它是因为想让电脑自动帮我整理文件。希望学完能写个简单的小脚本。每天大概 30 分钟吧，喜欢有人一步步带着做。\"\n用户消息 4：\"好，就按你安排的学习地图来吧，从第一个开始。\"\n用户消息 5：\"哦我懂了，print 是打印，变量就是装东西的盒子。我自己试了试，感觉掌握了。\"\n用户消息 6：\"学完了，挺有意思的！那今天先到这吧，我有点累了。\"",
+      "expected_output": "与 eval 6 相同的六步流程与教学纪律（诊断→地图→费曼导入→苏格拉底检验→动手→主动回忆→产物），只是主题换成 Python。验证教学纪律与主题无关",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_first",
+          "description": "第一轮回复先做诊断（问\"你目前知道些什么\"或类似诊断问题），未直接开始讲 Python 语法"
+        },
+        {
+          "name": "learning_map_shown",
+          "description": "对话中出现了学习地图/单元拆解（\"拆成\"、\"第 1 个单元\"、\"我们分几步\"、编号列表之一）"
+        },
+        {
+          "name": "analogy_before_definition",
+          "description": "教 Python 核心概念（print/变量）时先给类比（\"就像\"、\"说白了\"、\"好比\"之一）再给正式定义"
+        },
+        {
+          "name": "socratic_check_not_believe",
+          "description": "用户消息 5 说\"感觉掌握了\"时，没有直接说\"好的继续\"，而是用检验问题确认（\"用自己的话说一遍\"、\"如果遇到\"、\"举个例子\"、\"有什么区别\"之一）"
+        },
+        {
+          "name": "active_recall_test",
+          "description": "对话中出现主动回忆/自测环节（\"考你\"、\"测试\"、\"3 个问题\"、\"你来说说\"之一）"
+        },
+        {
+          "name": "no_condescension",
+          "description": "全程未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气鼓励"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "multi-turn-history-teaching",
+      "prompt": "【多轮对话模拟·非技术主题验证】你是一位 AI 学习教练。用户想学历史（中国近代史），以下是 6 条连续的用户消息（模拟一个零基础小白从开始到学完第一个单元的全过程）。请对每一条消息分别给出你的回复，把 6 轮完整的对话（含你的所有回复）作为一个整体输出。\n\n用户消息 1：\"我想学中国近代史，我是小白，完全没接触过。能一步步教我吗？\"\n用户消息 2：\"我完全不懂中国近代史，只知道大概是从清朝后期到新中国那段，别的就不知道了。\"\n用户消息 3：\"我想学它是因为看纪录片时觉得那段历史很关键，想弄明白时间线。希望学完能跟人讲清楚主要事件顺序。每天大概 30 分钟吧，喜欢有人一步步带着做。\"\n用户消息 4：\"好，就按你安排的学习地图来吧，从第一个开始。\"\n用户消息 5：\"哦我懂了，鸦片战争是导火索，就是输给了外国。我自己看了一遍，感觉掌握了。\"\n用户消息 6：\"学完了，挺有意思的！那今天先到这吧，我有点累了。\"",
+      "expected_output": "与 eval 6 相同的六步流程与教学纪律，主题换成非技术类（历史）。验证 skill 对非技术主题的适配程度——重点观察：类比是否自然、\"动手实践\"如何调整、产物是否仍然合理",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_first",
+          "description": "第一轮回复先做诊断（问\"你目前知道些什么\"或类似诊断问题），未直接开始讲历史"
+        },
+        {
+          "name": "learning_map_shown",
+          "description": "对话中出现了学习地图/单元拆解（\"拆成\"、\"第 1 个单元\"、\"我们分几步\"、时间线、编号列表之一）"
+        },
+        {
+          "name": "analogy_before_definition",
+          "description": "教历史概念时先给类比或具体场景（\"就像\"、\"说白了\"、\"好比\"、\"想象一下\"之一）再给正式叙述"
+        },
+        {
+          "name": "socratic_check_not_believe",
+          "description": "用户消息 5 说\"感觉掌握了\"时，没有直接说\"好的继续\"，而是用检验问题确认（\"用自己的话说一遍\"、\"如果遇到\"、\"举个例子\"、\"有什么区别\"、\"时间顺序\"之一）"
+        },
+        {
+          "name": "active_recall_test",
+          "description": "对话中出现主动回忆/自测环节（\"考你\"、\"测试\"、\"3 个问题\"、\"你来说说\"、\"时间线排序\"之一）"
+        },
+        {
+          "name": "no_condescension",
+          "description": "全程未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气鼓励"
+        },
+        {
+          "name": "practice_adapted_to_subject",
+          "description": "\"动手实践\"环节针对非技术主题做了调整（如让用户复述时间线、写一段总结、画时间轴、讲给别人听），而非生硬套用\"打开终端写代码\""
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "content-correctness-commit",
+      "prompt": "【内容正确性验证】你是一位 AI 学习教练。用户想学 Git，以下是 5 条连续的用户消息。请对每一条分别给出你的回复，把完整对话输出。重点是：在教 Git commit 概念时，必须给出准确、专业的解释（与 Git 官方文档一致）。\n\n用户消息 1：\"我想学 Git，我是小白，完全没接触过。能一步步教我吗？\"\n用户消息 2：\"我完全不懂 Git，只知道好像能保存代码版本，别的就不知道了。\"\n用户消息 3：\"我想学它是因为写代码总怕改坏，想能回退。希望学完能自己用 commit 保存版本。每天大概 30 分钟吧，喜欢有人一步步带着做。\"\n用户消息 4：\"好，就按你安排的学习地图来吧，从第一个开始。\"\n用户消息 5：\"哦我懂了，commit 就是把改动保存下来。我试了 git add 和 git commit，感觉掌握了。\"",
+      "expected_output": "教学纪律 + 内容正确性：教 commit 时的概念解释必须与 Git 官方语义一致（commit 是提交到本地仓库的版本快照，git add 是暂存、git commit 是提交，commit 包含作者/时间/消息等元数据；不会把 commit 说成\"上传到 GitHub\"这种错误）",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_first",
+          "description": "第一轮回复先做诊断，未直接开始讲 Git"
+        },
+        {
+          "name": "commit_metadata_mentioned",
+          "description": "教 commit 时**主动提到**其元数据（作者/提交时间/提交消息三者至少之一，如\"commit 会记录是谁、什么时候、改了什么\"）——只讲\"保存改动\"而不提任何元数据即判定失败（正向检查）"
+        },
+        {
+          "name": "local_vs_remote_distinguished",
+          "description": "教 commit 时**主动区分**本地仓库与远程（明确说出\"commit 保存到本地仓库、不是上传到 GitHub/云端\"或类似表述）——只讲\"commit 是保存\"而完全不提本地/远程区别即判定失败（正向检查）"
+        },
+        {
+          "name": "add_commit_relationship_correct",
+          "description": "git add（暂存）与 git commit（提交）的关系解释正确且完整：先 add 把改动放入暂存区，再 commit 把暂存区内容生成提交；若说反、混淆，或只讲其一不讲二者关系，判定失败"
+        },
+        {
+          "name": "no_condescension",
+          "description": "全程未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气鼓励"
+        },
+        {
+          "name": "knowledge_verification_encouraged",
+          "description": "对话中包含知识核实/验证的引导（\"如果你不确定可以查一下\"、\"这个说法对吗\"、\"我们对照一下文档\"、\"不懂的我们一起查\"之一），体现 skill 超纲场景\"不编造、引导查证\"的原则"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "long-multi-turn-15-rounds",
+      "prompt": "【长对话模拟·15 轮】你是一位 AI 学习教练。用户想学 Python，以下是 15 条连续的用户消息（模拟一个零基础小白跨两个学习单元、中途中断一次再续接的完整过程）。请对每一条消息分别给出你的回复，把 15 轮完整的对话（含你的所有回复）作为一个整体输出。\n\n用户消息 1：\"我想学 Python，我是小白，完全没接触过。能一步步教我吗？\"\n用户消息 2：\"我完全不懂 Python，只知道好像能处理数据、做自动化。\"\n用户消息 3：\"我想学它是因为想让电脑自动整理文件。希望学完能写个简单脚本。每天大概 30 分钟吧，喜欢有人带着做。\"\n用户消息 4：\"好，就按你安排的学习地图来吧，从第一个开始。\"\n用户消息 5：\"print 是打印，变量是装东西的盒子，我试了，感觉掌握了。\"\n用户消息 6：\"你问的那几个问题我都答上来了，我们继续下一个单元吧。\"\n用户消息 7：\"好，继续。\"\n用户消息 8：\"if 判断我有点懂了，就是条件成立才执行。\"\n用户消息 9：\"我有点累了，今天先到这吧，明天继续。\"\n用户消息 10：\"我回来了，继续学 Python。\"\n用户消息 11：\"我们上次学到哪了？你带我从那继续。\"\n用户消息 12：\"哦对，if 判断，我记得。再讲讲 else 吧。\"\n用户消息 13：\"else 就是否则的意思，条件不成立时执行。我好像懂了。\"\n用户消息 14：\"我试了 if/else，感觉掌握了，继续。\"\n用户消息 15：\"学得挺多了，今天先到这吧。\"",
+      "expected_output": "长对话中保持全部教学纪律：诊断→地图→单元1（print/变量）完整教学+检验→单元2（if/else）→中途中断保存状态→续接时正确恢复（不重新诊断、知道上次学到哪）→继续单元2→收尾。重点验证：15 轮对话中规则不漂移（始终类比先行、绝不说\"你错了\"、每单元都有检验和产物更新）",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_discipline_kept",
+          "description": "前 3 轮完成诊断（逐个问\"你目前知道些什么\"等），未在第 1 轮直接开始讲 Python 语法"
+        },
+        {
+          "name": "unit1_completed_then_unit2",
+          "description": "对话按单元推进：单元 1（print/变量）完整教完并检验后，才进入单元 2（if/else），没有跳单元或混在一起"
+        },
+        {
+          "name": "interruption_saved_state",
+          "description": "用户消息 9 说\"累了今天先到这\"时，明确保存了进度/状态（提到\"进度已保存\"、\"下次从 X 继续\"、\"状态文件\"之一），没有丢进度"
+        },
+        {
+          "name": "resume_correct_continuation",
+          "description": "用户消息 10-11 说\"回来了继续学\"时，正确恢复到上次的位置（提到上次学到哪/if 判断/单元 2 之一），且**没有重新问诊断 5 问**"
+        },
+        {
+          "name": "analogy_discipline_kept_late",
+          "description": "后半段对话（第 12-14 轮，教 else 时）仍先给类比（\"就像\"、\"说白了\"、\"好比\"、\"比如\"之一）再讲定义——验证规则在长对话中不漂移"
+        },
+        {
+          "name": "socratic_check_kept_late",
+          "description": "后半段（第 13-14 轮）用户说\"感觉掌握了\"时仍用检验问题确认（\"用自己的话说一遍\"、\"举个例子\"、\"如果遇到\"、\"考你\"之一），没有直接放行"
+        },
+        {
+          "name": "no_condescension_full_15",
+          "description": "全部 15 轮未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气始终鼓励（\"没关系\"、\"慢慢来\"、\"太棒了\"之一在后期轮次仍出现）"
+        },
+        {
+          "name": "product_update_mentioned",
+          "description": "对话中提及产物更新（\"笔记已追加\"、\"notes.md\"、\"速查卡\"、\"已保存到 my_learning\"之一），体现\"单元完成才更新产物\"的策略"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "material-driven-learning",
+      "prompt": "【资料驱动学习模拟】你是一位 AI 学习教练，装有 learn-like-a-pro 技能。用户说：\"我找到了一份学 Git 分支的学习资料，想让你带我学。资料在这里：.agents/skills/learn-like-a-pro/evals/files/material/git-branch-guide.md\"（相对仓库根路径，这是一个真实存在的 Markdown 文件，你应该读取它）。\n\n请按以下流程回应：\n1. 先读取用户提供的资料文件（用 read_file）\n2. 基于资料内容开始教学：先诊断用户基础，然后以资料为核心组织学习（资料讲了什么、重点在哪），而不是抛开资料自己另讲一套\n3. 识别资料中**没覆盖**的重要知识点（比如：远程分支、push/pull 与本地分支的关系——资料只讲了本地分支）\n4. 保持 skill 的教学纪律（先类比、苏格拉底检验等）",
+      "expected_output": "读取资料 → 确认已读（提到资料里的具体内容如\"草稿纸\"类比、git branch/checkout/merge 命令）→ 基于资料组织教学 → 指出资料没覆盖的点（如远程分支）→ 保持教学纪律",
+      "files": [],
+      "assertions": [
+        {
+          "name": "material_read",
+          "description": "明确读取了用户提供的资料文件（提到资料中的具体内容，如\"分支是独立开发线\"、\"草稿纸\"类比、git branch/checkout/merge 等命令）——若完全没提资料内容而自己另讲，判定失败"
+        },
+        {
+          "name": "material_centered_teaching",
+          "description": "教学以资料为核心组织（\"你这份资料讲了\"、\"资料里提到\"、\"先按资料顺序学\"之一），而不是抛开资料自己讲一套"
+        },
+        {
+          "name": "gap_identified",
+          "description": "指出了资料未覆盖的重要知识点（远程分支、push/pull、与远程仓库协作之一），体现\"资料教学 + 查漏补缺\""
+        },
+        {
+          "name": "diagnosis_still_kept",
+          "description": "即使有资料，仍先做诊断（\"你目前知道些什么\"等），没有因为有了资料就跳过诊断直接开讲"
+        },
+        {
+          "name": "no_condescension",
+          "description": "未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气鼓励"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "material-unreadable-fallback",
+      "prompt": "【资料驱动学习·读不了场景】你是一位 AI 学习教练，装有 learn-like-a-pro 技能。用户说：\"我找到一份学 AI Agent 的资料，但它是网页版，我这个环境好像没有网页抓取工具，文件也没法直接读。资料网址是 https://example.com/ai-agent-guide。你能带我学吗？\"\n\n注意：你的环境**没有** web 抓取工具和文件读取能力（本场景明确设定读不了）。请回应用户。",
+      "expected_output": "诚实告知当前环境读不了该网址/资料（不假装读过、不编造资料内容）→ 提供 fallback（请用户把资料内容粘贴过来，或用户口述要点）→ 在拿到内容前，仍可以基于用户已知信息开始或等待",
+      "files": [],
+      "assertions": [
+        {
+          "name": "honest_about_unreadable",
+          "description": "明确告知用户当前环境读不了该资料/网址（\"我这边读不了\"、\"没有抓取工具\"、\"无法访问\"之一），**没有假装读过或编造资料内容**"
+        },
+        {
+          "name": "paste_fallback_offered",
+          "description": "提供了 fallback 方案：请用户把资料内容粘贴过来、或用户口述要点（\"粘贴\"、\"发给我\"、\"复制过来\"、\"口述\"之一）"
+        },
+        {
+          "name": "no_fabrication",
+          "description": "没有编造该网址的具体内容（没有声称\"我看了，它讲的是……\"这种基于不存在读取的断言）；在用户提供内容前不假装掌握资料"
+        },
+        {
+          "name": "helpful_continuation",
+          "description": "即使读不了，仍给出了建设性下一步（可以先问用户已知道什么、或准备从哪开始），而不是直接拒绝或冷场"
+        }
+      ]
+    }
+  ]
+}

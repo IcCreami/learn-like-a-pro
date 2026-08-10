@@ -1,0 +1,1160 @@
+# learn-like-a-pro — 项目级开发日志与完整指南
+
+> **项目定位**：一个专为零基础（小白）用户设计的 AI 学习教练 Skill。采用苏格拉底教学法、费曼学习法、支架理论（Scaffolding）和主动回忆测试，通过互动式对话引导用户从零到掌握，并自动生成可复用的学习产物。
+> 
+> **项目根目录**：`.agents/skills/learn-like-a-pro/`（以下所有路径均相对仓库根）
+
+---
+
+## 目录
+
+1. [项目概述](#1-项目概述)
+2. [完整开发历程](#2-完整开发历程)
+3. [核心问题与解决方案](#3-核心问题与解决方案)
+4. [参考 Skill 分析与选用逻辑](#4-参考-skill-分析与选用逻辑)
+5. [设计决策记录](#5-设计决策记录)
+6. [文件总览与字段详解](#6-文件总览与字段详解)
+7. [目录结构](#7-目录结构)
+8. [使用方法](#8-使用方法)
+9. [版本演进](#9-版本演进)
+
+---
+
+## 1. 项目概述
+
+### 1.1 项目起源
+
+本项目源于一个明确的需求：**用户（自称小白）想要一个专注于学习 AI Agent、Skills 制作等技术的 AI 学习助手**。核心诉求包括：
+
+- **面向小白**：所有教学内容必须从最基础开始，绝不假设任何前置知识
+- **互动式对话学习**：不是单向灌输，而是通过苏格拉底式提问引导用户自己思考
+- **学习总结产物**：每次学习后自动生成结构化的学习报告/笔记，方便复习和跨 Agent 复用
+- **可续接性**：多轮对话之间能够保持连续性，不会因为对话中断而丢失进度
+
+### 1.2 核心设计理念
+
+```
+用户：我想学 XXX，但我是小白，完全不懂
+    ↓
+AI：先不急着讲概念，让我了解你一下（诊断5问）
+    ↓
+把大主题拆成 5~10 个「最小可学单元」，每次只学一个
+    ↓
+教学顺序：Motivation → Analogy → Intuition → Definition（绝不反着来）
+    ↓
+苏格拉底检验（绝不问"懂了吗"，而是让用户解释给别人听）
+    ↓
+动手实践（光听不练 = 白学）
+    ↓
+主动回忆测试（3题，检测是真懂还是假懂）
+    ↓
+生成学习产物（notes.md / cheatsheet.md / quiz.md / next-steps.md / glossary.md）
+    ↓
+保存 state.json，下次直接续接
+```
+
+### 1.3 与其他 Skill 的区别
+
+| 特性 | 普通教学 Skill | learn-like-a-pro |
+|------|---------------|------------------|
+| 教学起点 | 直接讲概念 | 先诊断用户基础，量身定制 |
+| 知识传递 | 一次性倒一堆 | 每次只教一个「最小可学单元」 |
+| 检验方式 | "懂了吗？" | 苏格拉底式提问 + 让用户"教别人" |
+| 实践环节 | 可选 | 强制，每个单元后必须动手 |
+| 学习产物 | 无或只有笔记 | 5 种结构化产物（笔记/速查卡/自测题/下一步指引/术语表） |
+| 多轮续接 | 无状态管理 | state.json + resume.md 双文件续接 |
+| 跨 Agent 复用 | 不支持 | 产物纯 Markdown，任何 Agent 可读 |
+
+---
+
+## 2. 完整开发历程
+
+### Phase 1：需求分析与 Skill 调研（2026-08-07）
+
+**用户初始需求**：
+> "帮我找有关学习新事物、learning、学习法、教学相关的 skills，主要目的是通过这个 skills 我自己再修改，以达到制作一个专注于帮我学习 ai agent、skills 制作等方面的学习助手。"
+
+**执行步骤**：
+
+1. **安装 npx / skills CLI 环境** —— 用于安装和管理社区 Skill
+2. **调研 7 个候选 Skill**，逐一分析其与需求的匹配度：
+   - `grill-with-docs`（Matt Pocock）— 边对话边产出文档 ✓
+   - `domain-modeling`（Matt Pocock）— 术语表实时维护、知识资产沉淀 ✓
+   - `skill-creator`（Anthropic）— Skill 制作官方标准 ✓
+   - `mentoring-juniors`（GitHub Awesome Copilot）— 小白教学语气、Sensei 角色 ✓
+   - `study-notes-creator`（Szeyu）— 学习成果产出 ✓
+   - `socratic-teaching-scaffolds`（LyndonKL）— 对话提问技巧 ✓
+   - `self-learning`（Phil Schmid）— 自学框架 ✓
+
+3. **用户质疑为什么不用 `anthropics/skills/skill-creator`** —— 解释：skill-creator 是 Skill 制作的标准规范，不是教学 Skill，不能直接用于学习 AI Agent
+
+4. **用户询问 `mattpocock/skills/grill-with-docs` 是否相关** —— 确认：高度相关，核心理念是"边对话边产出文档"，与本 Skill 的"边学习边生成产物"一致
+
+5. **确认 Skill 安装位置** —— 所有 Skill 安装在项目级目录 `.agents/skills/` 下，而非全局目录
+
+6. **整理 7 个参考 Skill 的 SKILL.md 对比文档** —— 分析每个 Skill 的核心理念、适用场景、与本项目的关联
+
+### Phase 2：Skill 框架搭建（2026-08-07）
+
+**用户输入**：
+> "参照 ai-agent-learning-companion，之后按照 skills-creator 的 skills 流程帮我完成我自己的那个 skills 的完整撰写。"
+
+用户提供了自己之前写的 `skills.md`（位于仓库根 `skills.md`），包含：
+- 基础六步学习流程（诊断 → 费曼法 → 拆解单元 → 动手实践 → 主动回忆 → 生成产物）
+- 7 条教学铁律
+- 基础触发条件
+
+**执行步骤**：
+
+1. **读取用户原始 `skills.md`** —— 143 行，结构较简单，缺少：状态管理、多轮续接、跨 Agent 复用、详细示例对话、质量检查清单、特殊场景处理
+
+2. **参照 `ai-agent-learning-companion` 的结构** —— 补充了角色定义、苏格拉底检验的 5 种提问类型、支架 Fading 的 4 个帮助级别
+
+3. **按照 `skill-creator` 的标准规范** —— 规范了 YAML frontmatter（name + description），description 使用 pushy 风格（主动、具体、明确触发条件）
+
+4. **集众家之长，编写完整 SKILL.md**：
+   - **来自 `mentoring-juniors`**：Sensei 角色设定、四条黄金规则、标志性语气、苏格拉底五阶段
+   - **来自 `socratic-teaching-scaffolds`**：问题阶梯、支架 Fading（Scaffolding）、最近发展区理论
+   - **来自 `obsidian-notes-creator`**：直觉优先写作、类比模式（step-down / before-after / object / direction-flip）
+   - **来自 `domain-modeling`**：术语表实时维护、知识资产沉淀
+   - **来自 `grill-with-docs`**：边对话边产出文档的理念
+   - **来自 `self-learning`**：自主探索引导、来源追溯
+   - **来自 `skill-creator`**：渐进式披露、pushy description、迭代评估意识
+
+5. **创建产物模板文件**（`references/templates/`）：
+   - `state.json` — 学习状态模板
+   - `notes.md` — 学习笔记模板
+   - `cheatsheet.md` — 速查卡模板
+   - `quiz.md` — 自测题模板
+   - `next-steps.md` — 下一步指引模板
+   - `glossary.md` — 术语表模板
+
+6. **创建测试用例**（`evals/evals.json`）：
+   - 场景1：完全零基础学 AI Agent
+   - 场景2：学完概念后动手写第一个 Skill
+   - 场景3：迷茫不知道学什么
+
+### Phase 3：质量验证与迭代（2026-08-07）
+
+**用户质疑**："你这个 skills 足够完善吗？"
+
+**执行步骤**：
+
+1. **自我审查** —— 发现以下缺口：
+   - ❌ 缺少「状态管理」机制（多轮对话如何续接？）
+   - ❌ 产物生成逻辑不明确（每轮都生成？还是每个单元生成？）
+   - ❌ 缺少「跨对话复用」机制（不同 Agent 如何读取学习成果？）
+   - ❌ 续接时 Token 消耗问题（每轮加载 630 行 SKILL.md，太贵）
+   - ❌ 不同主题之间缺乏独立性
+
+2. **逐一补全缺口**：
+   - ✅ 加入状态管理机制（state.json）
+   - ✅ 修改产物生成逻辑（单元级而非会话级）
+   - ✅ 创建 `references/resume.md`（精简续接指令，~200行）
+   - ✅ 撰写项目 README.md
+
+### Phase 4：核心架构优化 —— 轻量化续接（2026-08-07）
+
+**用户提出关键问题**：
+
+1. **是否足够轻量化？** 不会在多轮对话中重复无用的思考，消耗过多的 token？
+2. **每轮都会生成学习报告吗？** 多轮过后是实时更新的还是创建多个？如何保证连续性？
+3. **生成的学习报告可以复用吗？** 在该对话生成的报告，其他 agent 应用该 skills 后也能快速接上吗？
+
+**这些问题引出了本项目的核心架构设计：**
+
+#### 问题1：Token 消耗优化
+
+**问题描述**：传统 Skill 每轮对话都加载完整 SKILL.md（~630 行），多轮后 Token 消耗巨大。
+
+**方案演进**：
+
+| 方案 | 加载内容 | Token 消耗 | 教学质量 | 采用？ |
+|------|---------|-----------|---------|--------|
+| v1（原始） | 完整 SKILL.md（~630行） | 高 | 高 | ❌ |
+| v2（初版） | 只读 state.json（~30行） | 极低 | 低（AI 会"失忆"教学规则） | ❌ |
+| **v3（最终）** | **resume.md（~200行）+ state.json（~30行）** | **中（约完整版的 1/3）** | **高（保留核心教学规则）** | ✅ |
+
+**最终方案**：
+- **首次学习**：加载完整 SKILL.md（~630 行）→ 诊断 → 建状态文件
+- **续接学习**：加载 `references/resume.md`（~200 行）+ `state.json`（~30 行）
+  - `resume.md` 保留核心教学规则（费曼导入、苏格拉底检验、支架练习、产物生成策略、质量检查）
+  - `state.json` 提供实时进度
+  - 去掉首次学习才需要的示例对话和详细场景说明
+
+**用户重要补充**：
+> "优先保证输出质量与 skills 应用性，优先保证对话高质量与连续性。之后才是减少 token 的事。"
+
+这直接影响了最终方案的设计：resume.md 不能只是进度数据，必须包含足够的教学规则来保证续接时的教学质量。
+
+#### 问题2：产物生成策略与连续性
+
+**问题描述**：如果每轮对话都生成一份完整报告，多轮后会产生大量重复内容；如果只生成一份，如何保证实时更新？
+
+**解决方案**：
+
+**不是每轮对话都生成产物，而是每个学习单元完成后更新产物。**
+
+| 产物文件 | 更新策略 | 原因 |
+|---------|---------|------|
+| `notes.md` | **追加** | 每个单元是独立知识点，追加新单元内容 |
+| `cheatsheet.md` | **追加** | 新单元添加新条目 |
+| `quiz.md` | **追加** | 新单元添加新题目 |
+| `next-steps.md` | **覆盖** | 状态变化时必须最新 |
+| `glossary.md` | **追加** | 新术语不断积累 |
+| `state.json` | **覆盖** | 实时状态必须最新 |
+
+**连续性保证**：
+1. `state.json` 中的 `current_unit_index` 精确记录当前进度
+2. `units[].status` 记录每个单元的状态（pending / in_progress / completed）
+3. `units[].mastered` 记录是否通过主动回忆测试
+4. 每次续接时读取 `state.json`，直接定位到下一个待学单元
+
+#### 问题3：跨 Agent 复用
+
+**问题描述**：用户在一个对话中学了 3 个单元，生成的产物能否被另一个 Agent 读取并继续？
+
+**解决方案**：
+
+**核心原则：`my_learning/` 目录下的所有产物都是纯 Markdown，天然可跨 Agent 复用。**
+
+| 场景 | 操作 |
+|------|------|
+| 新 Agent 续接学习 | 加载 `resume.md`（教学规则）+ `state.json`（进度）→ 直接续接 |
+| 其他 Agent 快速了解用户背景 | 读取 `notes.md` + `glossary.md` |
+| 用户自己复习 | 直接打开 `cheatsheet.md` 和 `quiz.md` |
+| 迁移到其他设备 | 复制整个 `my_learning/` 目录即可 |
+
+**不同主题的独立性**：
+- 每个主题独立目录：`my_learning/ai-agent/`、`my_learning/python/`
+- 每个目录有独立的 `state.json`
+- 切换主题时，读取对应目录的状态文件
+
+### Phase 5：最终验证与文档整理（2026-08-10）
+
+**用户要求**：
+> "把你做的所有任务详细步骤和我们遇到的问题最后的解决，包括参考文件，你的一些理解和选用逻辑等等和最终产出，写成一个完整字段清晰的 readme.md 放在主文件中。"
+
+**执行**：编写本项目级 README.md（即当前文件）。
+
+---
+
+## 3. 核心问题与解决方案
+
+### 3.1 问题总览
+
+| # | 问题 | 影响 | 解决方案 | 文件变更 |
+|---|------|------|---------|---------|
+| 1 | 多轮对话 Token 消耗过大 | 续接时每次加载 630 行 SKILL.md | 引入 resume.md + state.json 双文件续接机制 | `references/resume.md` 新建；`SKILL.md` 状态管理章节更新 |
+| 2 | 续接时 AI "失忆"教学规则 | 只读 state.json 时 AI 忘记怎么苏格拉底提问 | resume.md 保留核心教学规则（~200行） | `references/resume.md` 包含费曼导入、苏格拉底检验、支架练习等 |
+| 3 | 产物重复生成 | 每轮对话都生成完整报告，内容大量重复 | 改为单元级更新，追加而非覆盖 | `SKILL.md` 产物生成规则章节；所有模板文件 |
+| 4 | 跨对话进度丢失 | 新对话无法知道上次学到哪里 | state.json 持久化进度 | `references/templates/state.json`；`my_learning/<主题>/state.json` |
+| 5 | 跨 Agent 无法复用 | 其他 Agent 不知道用户已学内容 | 产物纯 Markdown，任何 Agent 可读 | 产物格式设计为 Markdown；`state.json` 作为进度索引 |
+| 6 | 不同主题互相干扰 | 学 AI Agent 和学 Python 的进度混在一起 | 每个主题独立目录 | `my_learning/<主题>/` 目录结构 |
+| 7 | 用户卡在同一处多次 | 同一个概念反复教不会 | 支架 Fading + 类比切换机制 | `SKILL.md` 3.3 节；`references/resume.md` |
+| 8 | 用户说"我懂了"但实际没懂 | 直接讲下一个，后续发现基础不牢 | 苏格拉底快速检验 | `SKILL.md` 场景1处理 |
+| 9 | 用户完全不知道学什么 | 迷茫无方向，无法进入正常流程 | 兴趣发现四步法 | `SKILL.md` 场景5处理 |
+| 10 | 教学语气不友好 | AI 居高临下，打击小白信心 | 四条黄金规则 + 标志性语气清单 | `SKILL.md` 角色定义 |
+
+### 3.2 关键设计决策详解
+
+#### 决策 A：为什么用 resume.md + state.json，而不是只读 state.json？
+
+**背景**：初版方案（v2）提议"续接时只读 state.json"，因为 state.json 只有 ~30 行，Token 消耗极低。
+
+**问题发现**：state.json 只包含进度数据（current_unit_index、units 列表、diagnosis 结果），不包含任何教学规则。如果 AI 只读 state.json，它虽然知道"上次学到第 3 单元"，但可能忘记：
+- 苏格拉底检验应该怎么提问
+- 支架 Fading 的 4 个帮助级别怎么切换
+- 费曼导入的 Motivation → Analogy → Intuition → Definition 顺序
+- 鼓励性语气的规范（绝不说"你错了"）
+
+**结论**：只读 state.json 会导致 AI "失忆"，续接时的教学质量大幅下降。必须在续接时同时加载教学规则文件。
+
+**最终方案**：创建 `references/resume.md`（~200 行），包含核心教学规则但去掉示例对话和详细场景说明。续接时加载 resume.md + state.json，Token 消耗约为完整版的 1/3，但教学质量不降低。
+
+#### 决策 B：为什么是单元级产物更新，而不是会话级？
+
+**背景**：用户最初以为"每轮对话生成一份报告"。
+
+**问题**：如果每轮对话都生成一份完整报告，假设一个单元需要 3 轮对话完成，那么同一个单元的内容会在 3 份报告中重复出现。而且如果用户只是闲聊了一句"等一下"，AI 也生成一份报告，产物会大量冗余。
+
+**解决方案**：产物按「学习单元」更新，而不是按「对话轮次」更新。一个单元可能在多轮对话中完成，但只在单元完成时更新一次产物。
+
+**追加策略**：对于 notes.md、cheatsheet.md、quiz.md、glossary.md，使用**追加**方式（在已有文件末尾添加新内容），这样历史记录保留，不会丢失已学内容。只有 next-steps.md 和 state.json 需要**覆盖**更新（因为状态变化时必须最新）。
+
+#### 决策 C：为什么产物格式是 Markdown，而不是 JSON 或数据库？
+
+**背景**：需要支持跨 Agent 复用，用户也可能直接打开文件查看。
+
+**分析**：
+- JSON：机器友好，但人类阅读困难，尤其是不懂技术的用户
+- 数据库：需要额外依赖，不适合简单文件系统场景
+- Markdown：人类可读、可编辑，任何 Agent 都能解析，支持标题/表格/代码块等丰富格式
+
+**结论**：所有产物采用纯 Markdown 格式，天然可跨 Agent 复用，用户自己也能直接打开复习。
+
+---
+
+## 4. 参考 Skill 分析与选用逻辑
+
+### 4.1 调研的 7 个参考 Skill
+
+| # | Skill 名称 | 作者 | 下载量 | 核心理念 | 本项目吸收的内容 | 未采用的内容 |
+|---|-----------|------|--------|---------|-----------------|-------------|
+| 1 | **grill-with-docs** | Matt Pocock | 高 | 边对话边产出文档 | 产物生成的理念（边学边产出可复用文档） | 盘问式对话风格（太 aggressive，不适合小白） |
+| 2 | **domain-modeling** | Matt Pocock | 中 | 术语表实时维护、知识资产沉淀 | 术语表（glossary.md）的设计、知识资产沉淀理念 | 领域建模的专业方法论（对小白太复杂） |
+| 3 | **skill-creator** | Anthropic | **最高** | Skill 制作官方标准 | YAML frontmatter 规范、pushy description 写法、渐进式披露 | 仅作为规范参考，不是教学 Skill，不能直接用于学习 |
+| 4 | **mentoring-juniors** | GitHub Awesome Copilot | 中 | 小白教学、Sensei 角色、苏格拉底五阶段 | Sensei 角色设定、四条黄金规则、标志性语气、PEAR 循环 | — |
+| 5 | **study-notes-creator** / **obsidian-notes-creator** | Szeyu | 低 | 学习成果产出 | 直觉优先写作、类比模式（4 种）、质量检查清单 | Obsidian 特定功能（本项目不绑定特定工具） |
+| 6 | **socratic-teaching-scaffolds** | LyndonKL | 低 | 对话提问技巧 | 问题阶梯、支架 Fading（4 个级别）、最近发展区 | — |
+| 7 | **self-learning** | Phil Schmid | 低 | 自学框架 | 自主探索引导、来源追溯 | 过于强调自主学习（本项目是教练式引导，不是完全自学） |
+
+### 4.2 为什么不直接用 skill-creator？
+
+用户曾问："为啥不用 anthropics/skills/skill-creator，这个下载量不是非常高吗？"
+
+**原因**：
+- `skill-creator` 的用途是"教你如何写一个合格的 SKILL.md 文件"
+- 它的内容是关于 Skill 的 YAML frontmatter 规范、description 写法、目录结构等
+- **它不是教学 Skill**，不能直接用来"教你学 AI Agent"
+- 本项目把它作为**规范参考**（学习 SKILL.md 的标准格式），而不是作为教学内容的来源
+
+### 4.3 为什么 grill-with-docs 高度相关？
+
+用户曾问："mattpocock/skills/grill-with-docs 和我的需求相关吗？"
+
+**原因**：
+- `grill-with-docs` 的核心理念是"边对话边产出文档"
+- 本项目的核心理念是"边学习边生成产物（笔记/速查卡/自测题等）"
+- 两者都是**对话驱动产出**的模式，理念一致
+- 区别在于：`grill-with-docs` 产出的是需求文档/设计文档，本项目产出的是学习笔记/知识资产
+
+---
+
+## 5. 设计决策记录
+
+### 5.1 架构决策
+
+#### ADR-001：双文件续接机制（resume.md + state.json）
+
+- **状态**：已采纳
+- **背景**：需要解决多轮对话的 Token 消耗问题，同时保证续接时的教学质量
+- **决策**：引入 `references/resume.md`（核心教学规则，~200行）+ `state.json`（实时进度，~30行）
+- **后果**：首次加载 ~630 行，续接加载 ~230 行，Token 消耗降低约 63%，教学质量不降低
+
+#### ADR-002：单元级产物更新
+
+- **状态**：已采纳
+- **背景**：需要避免每轮对话都生成重复产物
+- **决策**：产物按「学习单元」更新，使用追加策略（next-steps.md 和 state.json 除外）
+- **后果**：产物文件随学习进度线性增长，无冗余；历史记录完整保留
+
+#### ADR-003：纯 Markdown 产物格式
+
+- **状态**：已采纳
+- **背景**：需要支持跨 Agent 复用和人类可读
+- **决策**：所有产物采用纯 Markdown 格式
+- **后果**：天然可跨 Agent 复用；用户可直接打开复习；无需额外解析器
+
+#### ADR-004：主题隔离目录
+
+- **状态**：已采纳
+- **背景**：用户可能同时学习多个主题（AI Agent + Python + Markdown）
+- **决策**：每个主题独立目录 `my_learning/<主题>/`，独立 state.json
+- **后果**：主题之间互不干扰；切换主题时读取对应状态文件
+
+### 5.2 教学决策
+
+#### ADR-101：Motivation → Analogy → Intuition → Definition 顺序
+
+- **状态**：已采纳
+- **来源**：综合费曼学习法 + `obsidian-notes-creator` 的直觉优先写作
+- **决策**：绝不以定义开头，必须先建立动机和直觉
+- **原因**：小白看到定义会直接懵，先建立生活类比才能理解
+
+#### ADR-102：苏格拉底检验替代"懂了吗"
+
+- **状态**：已采纳
+- **来源**：`mentoring-juniors` + `socratic-teaching-scaffolds`
+- **决策**：绝不直接问"懂了吗"，而是用澄清式/假设探查/反例测试/迁移应用/让TA教别人 来检验
+- **原因**：用户说"懂了"往往只是礼貌，苏格拉底式提问才能暴露真实理解水平
+
+#### ADR-103：支架 Fading（动态调整帮助级别）
+
+- **状态**：已采纳
+- **来源**：`socratic-teaching-scaffolds` 的最近发展区理论
+- **决策**：根据用户表现动态调整帮助程度（全模型 → 引导式 → 教练式 → 独立式）
+- **原因**：不同用户基础不同，同一用户的理解程度也在变化，需要动态适应
+
+#### ADR-005：`needs_review` 状态（v1.1 新增）
+
+- **状态**：已采纳
+- **背景**：原状态模型只有 `pending / in_progress / completed`，但 SKILL.md 已有"卡住需重学"的语义（主动回忆 0-1 题对、卡住超过 3 次），语义与状态值不匹配，导致 `current_unit_index` 推进逻辑含糊
+- **决策**：`units[].status` 增加 `needs_review`；卡住 3 次或测试 0-1 题对时标记，**`current_unit_index` 禁止推进**；续接时优先重学 `needs_review` 单元
+- **后果**："学完"（status=completed）与"掌握"（mastered=true）明确分离；续接不会跳过没学会的单元
+- **来源**：grill-with-docs 盘问发现 + 用户拍板
+
+#### ADR-006：产物生成环境 fallback（v1.1 新增）
+
+- **状态**：已采纳
+- **背景**："检测到 state.json / 写入产物"依赖 AI 有文件系统访问权，网页版对话等环境做不到，产物生成这一核心承诺会落空
+- **决策**：SKILL.md 与 resume.md 均写明 fallback——无法写文件时，在对话中用代码块输出完整产物内容，并告知用户手动保存到 `my_learning/<主题>/`
+- **后果**：产物生成在任何环境都不跳过；代价是对话变长（多出完整产物文本）
+- **来源**：grill-with-docs 盘问发现 + 用户拍板
+
+#### ADR-007：主题目录英文 kebab-case + `topic` 存中文名（v1.1 新增）
+
+- **状态**：已采纳
+- **背景**：`my_learning/<主题>/` 的目录名规范未定义，中文/空格目录名在跨 Agent 复用与部分工具链中有兼容性问题
+- **决策**：目录一律英文 kebab-case（`ai-agent`、`python`）；中文名存 `state.json` 的 `topic` 字段；新增 `topic_slug` 字段与目录名保持一致
+- **后果**：新 Agent 可靠定位主题目录；路径处理无兼容风险
+- **来源**：grill-with-docs 盘问发现 + 用户拍板
+
+#### ADR-008：resume.md 与 SKILL.md 双份维护（已知代价，接受）
+
+- **状态**：已接受（设计权衡）
+- **背景**：resume.md 与 SKILL.md 重复维护角色、黄金规则、知识构建、苏格拉底、支架、产物生成等核心教学规则（~200 行重复）
+- **权衡**：续接时不加载 SKILL.md（Token 降 63%），所以教学规则必须完整复制进 resume.md——**没有第三条路**。若不复制则续接时 AI "失忆"，若复制则有两份需同步
+- **代价与缓解**：改教学规则时两处必须一起改。缓解方式：每次修改后跑 eval 4（续接场景）验证 resume.md 与 SKILL.md 行为一致；eval 断言中已有 `no_repeat_diagnosis` 等规则一致性检查
+- **来源**：skill-creator 评估发现
+
+#### ADR-009：间隔复习不加回（用户明确决策）
+
+- **状态**：已否决（明确不采纳）
+- **背景**：原始 `skills.md` 有"当天/第 2 天/第 7 天"间隔复习计划，v1.0 的 SKILL.md 已移除
+- **决策**：不加回。定位是"即时学习陪伴"——用户想学时随时教，不主动排每日计划；只有当用户明确要求制定学习计划时，才临时制定
+- **原因**：用户偏好"在我学的时候专注于解决现在的学习问题"，不希望被每日进度绑定
+- **后果**：state.json 不需要 `next_review_at` 字段，状态模型保持轻量
+
+---
+
+## 5.3 eval 评估闭环（v1.2 新增）
+
+> 本节记录本项目用 **skill-creator 方法论** 对 learn-like-a-pro 做的第一次完整评估（iteration-1）。完整数据见 `learn-like-a-pro-workspace/iteration-1/`。
+
+### 环境准备
+
+- 安装 Python 3.12（本项目脚本依赖）并加入 PATH，或使用完整路径调用：
+  ```bash
+  PY="C:/Users/<用户名>/AppData/Local/Programs/Python/Python312/python.exe"
+  ```
+- 安装依赖：`"$PY" -m pip install pyyaml`
+- **Windows 中文编码坑**：Python 默认按 GBK 读文件会报 `UnicodeDecodeError`，所有脚本需加 `PYTHONUTF8=1` 前缀：
+  ```bash
+  PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/scripts/quick_validate.py .agents/skills/learn-like-a-pro
+  ```
+- 基础校验通过：`Skill is valid!`
+
+### 评估流程（skill-creator 方法论）
+
+```
+evals/evals.json（5 场景，17 断言）
+  → 对每个 eval 派发 2 个子代理：with_skill（加载 SKILL.md）vs baseline（无技能）
+  → 输出保存到 learn-like-a-pro-workspace/iteration-1/eval-N/<config>/run-1/outputs/response.md
+  → grader 子代理按 agents/grader.md 评分 → run-1/grading.json
+  → aggregate_benchmark.py 聚合 → benchmark.json / benchmark.md
+  → generate_review.py --static 生成可视化 review.html
+```
+
+关键命令：
+
+```bash
+# 聚合
+PYTHONUTF8=1 PYTHONPATH=".agents/skills/skill-creator" "$PY" -m scripts.aggregate_benchmark \
+  learn-like-a-pro-workspace/iteration-1 --skill-name learn-like-a-pro --skill-path .agents/skills/learn-like-a-pro
+
+# 生成 viewer（无显示环境用 --static 输出 HTML）
+PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
+  learn-like-a-pro-workspace/iteration-1 --skill-name learn-like-a-pro \
+  --benchmark learn-like-a-pro-workspace/iteration-1/benchmark.json \
+  --static learn-like-a-pro-workspace/iteration-1/review.html
+```
+
+> 注：`run_eval.py` / `run_loop.py` 依赖 `claude` CLI（Claude Code 生态），本项目环境不可用；改用子代理直接执行 eval prompt 的方式等价完成。
+
+### iteration-1 结果
+
+**第一轮评分（初始断言）**：
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | 77.4% ± 35% | 64.0% ± 37% | +13.4% |
+
+**analyst pass 发现的系统性问题**（多个 grader 一致指出）：
+
+1. **断言与"单轮首答"场景错配（最严重）**：eval 1 的断言要求单轮内"5 个诊断问题依次出现 + 概念讲解 + 产物生成"，但这违反 skill 自身黄金规则 #2（一次只教一个单元、诊断问题逐个问）。**with_skill 严守规则反而全挂（0.2）**，baseline 直接倒知识反而部分通过——基准测反了。
+2. eval 3 的"推荐入门主题"断言对 with_skill 不公平：场景 5 要求先收集兴趣再推荐，单轮先提问是正确行为。
+3. eval 5 的"产物输出"断言与诊断轮不匹配：产物在单元完成时才生成，第一轮不可能有。
+4. eval 2 断言区分度低（"之一"枚举太宽），baseline 也能全过。
+
+**修复**：重写 3 个 eval 的断言，使其符合交互式教学的单轮现实（诊断第 1 问、不过早推荐、fallback 承诺）。重评后：
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100% ± 0%** | **83.4% ± 24%** | **+16.7%** |
+
+**关键对比（修正后的有区分度断言）**：
+
+| eval | with_skill | without_skill | 说明 |
+|------|-----------|---------------|------|
+| 1 小白学 AI Agent | 4/4 | 2/4 | with_skill 严守"只问诊断第 1 问、不直接讲概念"；baseline 零诊断直接灌输概念 |
+| 2 写第一个 Skill | 3/3 | 3/3 | 两者都引导动手（baseline 本身较强） |
+| 3 迷茫用户 | 3/3 | 3/3 | 两者都做了情绪支持+兴趣发现 |
+| 4 续接学习 | 4/4 | 4/4 | needs_review 优先重学、跳过重复诊断均生效（输入有 needs_review 单元） |
+| 5 无文件系统 fallback | 3/3 | 2/3 | with_skill 明确承诺 fallback + 保存路径；baseline 干脆放弃产物 |
+
+**结论**：
+- v1.1 的三项机制（`needs_review` 优先重学、产物 fallback、续接跳过诊断）经 eval 验证**真实生效**（eval 4/5 with_skill 全过且行为正确）。
+- skill 最大的可测量价值在 eval 1：**诊断纪律**（baseline 会零诊断直接倒概念，这正是本 skill 要防的）。
+- 评估的最大教训：**交互式对话型 skill 的断言必须针对单轮现实设计**，否则基准会奖励"违反教学纪律"的行为。
+
+### 遗留事项
+
+- [ ] eval 2 断言区分度仍偏低（baseline 3/3），后续可加"教学内容正确性"断言（如 frontmatter 是否完整、`---` 是否闭合）
+- [ ] eval 4 的 `needs_review_priority` 是条件断言，需确认目标 runner 是否支持条件断言语法
+- [ ] eval 4 输入 fixture 中 needs_review 是单元 2（index 1）而非单元 1，任务描述与实际文件需保持一致
+- [ ] 跑多轮对话 eval（当前只有单轮首答），覆盖"苏格拉底检验 → 动手实践 → 主动回忆 → 产物生成"完整链路
+
+---
+
+### iteration-2：断言加严 + 多轮对话 eval（v1.2 追加）
+
+> iteration-1 的遗留事项已完成两项：eval 2 断言加严、多轮对话 eval 上线。
+
+#### ① eval 2 断言加严
+
+**问题**：原 eval 2 断言过宽（"产物包含 Skill 模板"这类"之一"枚举），baseline（无技能）也能拿 3/3，测不出差距。
+
+**修改**：重写为 4 条有区分度的断言——`diagnosis_before_teaching`（教学前先诊断）、`teaches_skill_file_format`（给出 `SKILL.md` 具体格式指令，而非"到时候教你写"）、`guided_hands_on`、`scaffolding_guided_not_doing`。
+
+**重评结果**：
+
+| 配置 | 结果 | 说明 |
+|------|------|------|
+| with_skill | **4/4** | 先诊断 5 问 → 拆 4 个单元 → 费曼导入 → 给出 `---` 和 `name:` 具体写法 |
+| without_skill | **2/4** | 无诊断直接开讲；只说"格式很简单到时候教你"，未给具体格式指令 |
+
+基准随即更新：**with_skill 100% vs without_skill 73.4%（Δ +26.6%）**（加严前 +16.7%）。
+
+#### ② 多轮对话 eval（eval 6：multi-turn-full-journey）
+
+**设计**：这是首个覆盖**完整教学链**的 eval。给 AI 一段 6 条连续的用户消息（模拟零基础小白从"我想学 Markdown"到"今天先到这"的全过程），AI 必须逐轮回应，输出完整对话转写。6 条断言验证整段对话：诊断先行、学习地图、类比先于定义、不信"懂了"用苏格拉底检验、主动回忆测试、无否定语。
+
+**结果**：
+
+| 配置 | 结果 | 差异点 |
+|------|------|--------|
+| with_skill | **6/6** | 诊断逐个问、6 单元地图、菜单类比先行、绝不信"感觉掌握了"（3 问检验）、时间到走场景 3 保存状态 |
+| without_skill | **5/6** | 唯一失败：**"类比先于定义"**——教"轻量级标记语言"时定义先行、例子殿后 |
+
+**这个差距正是 skill 的核心教义（ADR-101）**：不装 skill 的普通 AI 会直接定义先行，装了 skill 才会先给生活类比。多轮 eval 首次在完整对话链上验证了它。
+
+#### 完整基准（6 eval）
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100% ± 0%** | **75.1% ± 23%** | **+24.9%** |
+
+**iteration-2 新遗留**：
+- [ ] eval 6 断言 4（不信"懂了"）与断言 5（主动回忆）指向同一检验事件，有重叠，可合并或拆分
+- [ ] eval 6 缺一条"学习状态落盘"断言（grader 建议：验证对话声称保存的 notes.md/state.json 是否真实存在）——当前转写是模拟输出，产物不在目录中，属已知限制
+- [ ] eval 2 的 `teaches_skill_file_format` 断言"之一"仍偏宽（with_skill 未提 `description:` 也通过），可考虑要求 name+description 双字段
+
+---
+
+### iteration-3：换主题验证 + 内容正确性正向检查（v1.2 追加）
+
+> 为回答"换主题差异大吗""会不会教错知识"两个问题，新增 3 个 eval（总数 9 个，43 条断言）。
+
+#### 换主题测试（eval 7/8）
+
+| 多轮场景 | with_skill | baseline | 结论 |
+|---------|-----------|----------|------|
+| eval6 Markdown（原） | 6/6 | 5/6 | — |
+| eval7 Python（换技术主题） | 6/6 | 4/6 | 教学纪律与主题无关；baseline 反而更低 |
+| eval8 历史（非技术主题） | 7/7 | 6/7 | 非技术主题也全过；"动手实践"自动适配为复述/画时间线 |
+
+**据此优化**：SKILL.md 与 resume.md 的"动手实践"新增非技术主题适配规则（复述/画时间线/写总结/场景化问题，不套用"打开终端写代码"）。
+
+#### 内容正确性（eval 9，两轮）
+
+- **第一轮（宽松）**：只查"有无明显错误"，双方 4/4 全过，无区分度
+- **第二轮（正向检查）**：要求主动讲对关键要素（提到元数据、区分本地/远程、add/commit 关系完整、有查证引导）——**with_skill 6/6 vs baseline 4/6**
+- 差距：普通 AI 全程没区分"commit 是本地、不是上传 GitHub"；也没引导查证。知识点本身双方都对——**知识正确性主要取决于模型，skill 管"教得规范、讲得全、不懂会查"**
+
+#### 完整基准（9 eval）
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100% ± 0%** | **74.4% ± 19%** | **+25.6%** |
+
+**iteration-3 新遗留**：
+- [ ] eval 9 的 `knowledge_verification_encouraged` 断言最弱（with_skill 靠"把终端输出发回一起看"边缘通过），可改为字面匹配"对照文档/查一下"
+- [ ] eval 9 的 `commit_metadata_mentioned` 断言锚点未定（元数据在配置身份处提及而非讲概念处），建议明确判定位置
+- [ ] 技能型非技术主题（弹钢琴/游泳）未测——"练"多于"学"的内容是下一个可验证盲区
+
+---
+
+### iteration-4：长对话耐力测试（eval 10，v1.2 追加）
+
+> 回答"长篇幅多对话还能保持质量与准度吗"——这是 eval 至今未覆盖的场景。
+
+**设计**：15 轮连续对话（学 Python），覆盖诊断→单元1完整→单元2→**中途中断续接**→收尾。8 条断言专测**规则漂移**（后半段第 12-14 轮是否仍类比先行、仍检验、仍无否定语）。
+
+**结果**：
+
+| 指标 | with_skill | baseline | 差距 |
+|------|-----------|----------|------|
+| 15 轮长对话 | **8/8 (100%)** | **5/8 (62.5%)** | **+37.5%** |
+
+**关键发现——规则漂移是真实的，skill 恰恰防住了它**：
+- baseline 第 13-14 轮：用户说"感觉掌握了"→ 直接放行（"完全正确！进入 elif"）；后半段教 else/elif 直接给代码，不再类比先行；全程无产物机制
+- with_skill 第 12-14 轮：仍先给"下雨带伞/否则戴帽子"类比；"好像懂了"仍要求复述+追问；中断时明确"进度写进 state.json"，续接不重新诊断
+
+**结论**：对话越长，普通 AI 越"散"；skill 把规则写死在指令里，每轮照规则回复，稳定性优势在长对话中**不减反增**（差距从短对话 +17% 扩大到长对话 +37.5%）。
+
+**完整基准（10 eval，51 断言）**：
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100% ± 0%** | **73.2% ± 18%** | **+26.8%** |
+
+**iteration-4 新遗留**：
+- [ ] 15 轮是当前上限；50+ 轮超长对话、多主题并行长对话未测
+- [ ] eval 10 的"后半段检验"断言建议显式点名"教练主动提出检验问题"，防"仅用户自述掌握即放行"的宽松实现通过
+
+---
+
+### iteration-5：资料驱动学习（eval 11/12，v1.2 追加）
+
+> 用户需求："用户找到学习资料发过来（文件或网址），工作流能否识别、阅读并基于资料继续学习？"——含能读与读不了两种情况。
+
+**结果**：
+
+| 场景 | with_skill | baseline | 差距 |
+|------|-----------|----------|------|
+| eval 11 能读资料（发 Git 分支文档） | **5/5** | **3/5** | baseline 不指出资料缺口、有资料跳过诊断 |
+| eval 12 读不了（无工具环境） | 4/4 | 4/4 | 双方都诚实、都提供 fallback、都不编造 |
+
+**关键发现（呼应"读取能力取决于 agent"的判断）**：
+- **读取能力双方相当**——普通 AI 也会读文件、也会诚实说"读不了"。证实"能不能读到"归 agent 模型能力
+- **skill 价值在"读到之后"**：查漏补缺（baseline 资料说什么教什么；with_skill 主动指出资料缺远程分支）＋ 有资料仍守诊断纪律
+- **发现指令缺口**：SKILL.md 原本没有任何"用户发资料"的工作流指令，eval 11 通过靠模型自觉
+
+**据此改进**：SKILL.md 与 resume.md 新增"**资料驱动学习**"章节（能力检测→读取→提炼→教学→查漏；读不了→诚实告知+粘贴 fallback+不编造）。规则明文化，不再依赖模型运气。
+
+**完整基准（12 eval，60 断言）**：
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100% ± 0%** | **74.4% ± 19%** | **+25.6%** |
+
+**iteration-5 新遗留**：
+- [ ] eval 11 的"以资料为核心教学"断言证据要求偏弱（开场白可表面满足），可要求"按资料结构组织教学"
+- [ ] eval 12 可加断言验证"第三条路（不靠资料直接开课）"是否被提供
+
+---
+
+## 6. 文件总览与字段详解
+
+### 6.1 核心文件
+
+#### `SKILL.md`（~591 行）— 主 Skill 文件
+
+**作用**：完整的 AI 学习教练指令，首次学习时加载。
+
+**结构**：
+
+| 章节 | 行数 | 内容 |
+|------|------|------|
+| YAML Frontmatter | 1-13 | name + description（pushy 风格，英文，给 AI 看） |
+| 角色定义 | 14-40 | Sensei 角色、四条黄金规则、标志性语气 |
+| 触发条件 | 41-58 | 11 种激活场景（用户说"我想学 XXX"、"我完全不懂 XXX"等） |
+| 状态管理 | 59-143 | 首次学习 vs 续接学习的逻辑、state.json 字段说明、产物生成规则、跨对话复用 |
+| 核心工作流 | 144-340 | 六步循环详解（诊断→地图→知识构建→实践→回忆→产物） |
+| 教学原则 | 341-352 | 7 条铁律 |
+| 质量检查清单 | 353-379 | 首次检查 / 每单元必检 / 产物检查 / 通用检查 |
+| 特殊场景 | 380-431 | 5 个场景（懂了跳过/卡住3次/时间到了/超纲/迷茫） |
+| 示例对话 | 432-547 | 3 个完整示例（学 AI Agent / 迷茫 / 写 Skill） |
+| 会话结束模板 | 548-578 | 标准化结束语 |
+| 设计灵感来源 | 579-591 | 7 个参考 Skill 的致谢 |
+
+**关键字段**：
+
+- `name: learn-like-a-pro` — Skill 的唯一标识
+- `description` — 给 AI 看的激活指令，使用英文和 pushy 风格，明确列出所有触发条件
+
+#### `references/resume.md`（~201 行）— 续接学习精简指令
+
+**作用**：续接学习时加载，代替完整 SKILL.md，保留核心教学规则但去掉示例对话和详细场景。
+
+**结构**：
+
+| 章节 | 行数 | 内容 |
+|------|------|------|
+| 角色定义 | 1-29 | Sensei 角色、四条黄金规则、标志性语气（同 SKILL.md） |
+| 续接流程 | 30-38 | 读取 state.json → 确认续接 → 从第三步开始 |
+| 知识构建 | 39-86 | 费曼导入、苏格拉底检验、支架练习 |
+| 动手实践 | 87-99 | 实践要求、报错处理三步走 |
+| 主动回忆 | 100-114 | 3 题测试、评分标准 |
+| 产物生成 | 115-145 | 产物更新策略、state.json 更新字段 |
+| 会话结束模板 | 146-169 | 标准化结束语（精简版） |
+| 质量检查 | 170-182 | 每单元必检清单 |
+| 特殊场景速查 | 183-201 | 4 个常见场景的快速处理 |
+
+**与 SKILL.md 的区别**：
+
+| 内容 | SKILL.md | resume.md |
+|------|----------|-----------|
+| 示例对话 | 3 个完整示例（~115行） | 无 |
+| 触发条件 | 详细列出 | 无（续接时不需要） |
+| 诊断五问 | 完整流程 | 无（续接时跳过） |
+| 学习地图展示 | 完整流程 | 无（续接时跳过） |
+| 场景处理 | 5 个场景详细说明 | 4 个场景速查（一句话） |
+| 产物模板链接 | 有 | 无（直接操作产物） |
+
+#### `README.md`（~260 行）— 用户使用文档
+
+**作用**：面向用户的说明文档，解释 Skill 的功能、使用方法、产物说明。
+
+**结构**：
+
+| 章节 | 内容 |
+|------|------|
+| 目录层级 | 项目目录树 |
+| 核心设计 | 轻量化续接、产物策略、连续性、独立性、跨 Agent 复用 |
+| 安装 | 两种安装方法 |
+| 使用方法 | 首次学习 / 续接学习 / 切换主题 |
+| 核心工作流 | 流程图 |
+| 产物说明 | 6 种产物的详细介绍 |
+| 测试用例 | 3 个 eval 场景 |
+| 设计来源 | 7 个参考 Skill 的致谢表 |
+
+### 6.2 模板文件（`references/templates/`）
+
+#### `state.json` — 学习状态模板
+
+**作用**：每个主题的运行时状态文件，位于 `my_learning/<主题>/state.json`。
+
+**字段详解**：
+
+```json
+{
+  "topic": "[主题名称，如 'AI Agent']",           // 当前学习主题（中文名）
+  "topic_slug": "[英文kebab-case，如 'ai-agent']", // 与目录 my_learning/ai-agent/ 一致
+  "created_at": "[ISO 8601格式]",                  // 首次学习时间，用于统计学习周期
+  "last_updated": "[ISO 8601格式]",                // 最后更新时间，用于判断状态新鲜度
+  "current_unit_index": 0,                         // 当前正在学/待学的单元索引（0-based）
+  "total_units": 0,                                // 总单元数，用于计算进度百分比
+  "units": [                                       // 单元列表
+    {
+      "name": "[单元名称]",                        // 单元名称，如"AI Agent 是什么"
+      "status": "pending",                         // 状态：pending / in_progress / completed / needs_review
+      "mastered": false,                           // 是否通过主动回忆测试
+      "last_session": "[ISO 8601或null]"           // 上次学习该单元的时间
+    }
+  ],
+  "diagnosis": {                                   // 首次诊断结果（复用，不重复问）
+    "current_knowledge": "",                       // 用户当前已知内容
+    "goal": "",                                    // 学习目标
+    "time_available": "",                          // 可用时间
+    "preference": ""                               // 学习偏好
+  },
+  "products_version": 1,                           // 产物版本号，用于检测格式更新
+  "session_history": [                             // 会话记录
+    {
+      "timestamp": "[ISO 8601]",                   // 会话时间
+      "units_covered": [0]                         // 本次会话覆盖的单元索引
+    }
+  ]
+}
+```
+
+**更新规则**：
+- `current_unit_index`：每完成一个单元后 +1（**needs_review 时禁止推进**）
+- `units[当前].status`：完成时改为 `"completed"`；0-1 题对或卡住 3 次改为 `"needs_review"`
+- `units[当前].mastered`：通过测试改为 `true`，未通过保持 `false`
+- `last_updated`：每次会话结束更新
+- `session_history`：每次会话追加一条记录
+- `topic_slug`：创建时写入，与所在目录名一致（英文 kebab-case）
+
+#### `notes.md` — 学习笔记模板
+
+**作用**：按单元组织的详细学习笔记，大白话 + 类比 + 正式定义 + 易踩坑。
+
+**字段详解**：
+
+```markdown
+# [主题] 学习笔记
+
+> 学习时间：[日期]              // 本单元的学习时间
+> 本次学习单元：[单元名]        // 单元名称
+> 学习时长：[时长]              // 实际学习时长
+
+---
+
+## 🎯 本次掌握的概念
+
+### [概念名]
+- **一句话理解**：[大白话]    // 用生活语言解释
+- **类比**：[生活比喻]        // 具体类比，如"Agent 就像餐厅服务员"
+- **正式定义**：[精确表述]    // 术语级精确表述
+- **什么时候用**：[场景]      // 实际应用场景
+
+---
+
+## ⚠️ 容易踩的坑
+
+1. [常见误解] → [正确理解]   // 记录典型错误和纠正方法
+2. [常见错误] → [如何避免]   // 预防性提示
+
+---
+
+## 🔗 相关概念
+
+- [[相关概念A]] — [一句话关系]  // 建立知识网络
+- [[相关概念B]] — [一句话关系]
+
+---
+
+## 📚 推荐下一步
+
+- [ ] [下一个学习单元]          // 勾选式待办
+- [ ] [深入阅读资源]
+```
+
+**追加格式**（在已有文件末尾）：
+
+```markdown
+---
+
+## [单元名称] — [日期]
+
+[本单元的具体内容]
+```
+
+#### `cheatsheet.md` — 速查卡模板
+
+**作用**：一页纸速查，表格形式，适合快速复习。
+
+**字段详解**：
+
+```markdown
+# [主题] 速查卡
+
+| 概念 | 一句话 | 什么时候用 |       // 三列表格：概念名、大白话、场景
+|------|--------|-----------|
+| A | ... | ... |
+| B | ... | ... |
+
+## 常用命令/操作
+
+```
+[代码块]                        // 可复制粘贴的命令/代码
+```
+
+## 记住这个类比
+
+> [核心类比]                     // 最核心的类比，一句话记住整个概念
+```
+
+#### `quiz.md` — 自测题模板
+
+**作用**：每个单元 3-5 道自测题，带折叠答案。
+
+**字段详解**：
+
+```markdown
+# [主题] 自测题
+
+## 问题 1
+
+[问题]                           // 问题描述
+
+<details>
+<summary>答案</summary>          // 可折叠的答案区域
+
+[答案 + 解析]                    // 答案 + 为什么
+
+</details>
+```
+
+**设计意图**：折叠答案防止直接看到答案，强迫自己先思考。
+
+#### `glossary.md` — 术语表模板
+
+**作用**：持续更新的术语表，每个术语配大白话 + 类比。
+
+**字段详解**：
+
+```markdown
+# [主题] 术语表
+
+| 术语 | 大白话 | 类比 | 首次出现 |     // 四列表格
+|------|--------|------|---------|
+| [术语A] | [一句话解释] | [生活比喻] | [日期] |
+| [术语B] | [一句话解释] | [生活比喻] | [日期] |
+```
+
+**设计意图**：降低术语门槛，每个术语都有"人话版"。
+
+#### `next-steps.md` — 下一步指引模板
+
+**作用**：已掌握 / 待学习 / 练习建议 / 推荐资源，**覆盖更新**。
+
+**字段详解**：
+
+```markdown
+# [主题] 下一步学习指引
+
+## ✅ 已掌握
+
+- [单元1]                       // 已完成并掌握的单元
+- [单元2]
+
+## 📋 待学习
+
+- [单元3] — [预计时间]          // 待学单元 + 预计时长
+- [单元4] — [预计时间]
+
+## 🏋️ 练习建议
+
+1. [具体练习任务]               // 可操作的小任务
+2. [具体练习任务]
+
+## 📖 推荐资源
+
+- [文档/文章链接] — [一句话说明]  // 带说明的资源链接
+```
+
+**为什么是覆盖更新**：因为状态变化时（完成一个单元），已掌握和待学习的列表都会变化，必须整体更新。
+
+### 6.3 测试文件
+
+#### `evals/evals.json` — 测试用例
+
+**作用**：5 个测试场景，用于验证 Skill 质量。
+
+**结构**：
+
+```json
+{
+  "skill_name": "learn-like-a-pro",
+  "evals": [
+    {
+      "id": 1,
+      "name": "beginner-ai-agent-learning",      // 场景名称
+      "prompt": "我想学 AI Agent...",            // 用户输入
+      "expected_output": "第一轮只问诊断第1问...",  // 期望输出（v1.2 修正为单轮现实）
+      "files": [],
+      "assertions": [                             // 断言清单（客观可验证，含判定关键词）
+        {"name": "diagnosis_first_question_only", "description": "第一轮首答只问诊断第1问，未一次性倒出5个问题"},
+        {"name": "no_concept_dump", "description": "第一轮未直接讲解 Agent 概念"},
+        ...
+      ]
+    }
+  ]
+}
+```
+
+**6 个场景**：
+
+| # | 场景 | 测试重点 |
+|---|------|---------|
+| 1 | 完全零基础学 AI Agent | **诊断纪律**（只问第1问、不直接讲概念、语气鼓励、承诺学习路径） |
+| 2 | 学完概念后动手写第一个 Skill | 教学前诊断、具体格式指令（`---`/`name:`）、引导非代做 |
+| 3 | 迷茫不知道学什么 | 情绪支持、兴趣发现、不过早推荐 |
+| 4 | 续接学习（"继续学 AI Agent"） | 检测 state.json、确认进度、跳过重复诊断、needs_review 优先重学 |
+| 5 | 无文件系统环境的产物 fallback | 承诺 fallback 机制、告知保存路径、教学不中断 |
+| 6 | 多轮完整教学对话（v1.2 新增） | 完整教学链：诊断→地图→类比先行→苏格拉底检验→主动回忆（6 轮对话转写） |
+
+（v1.1 起由 3 个扩展为 5 个，v1.2 增至 6 个；断言经 eval 闭环修正为符合交互式教学的单轮现实，并新增多轮场景——详见 5.3 节）
+
+---
+
+## 7. 目录结构
+
+```
+<项目根>/                              ← 项目根目录
+│
+├── skills.md                                      ← 用户最初的手写版本（143行，简单框架）
+│                                                   // 包含：基础六步流程、7条铁律、基础触发条件
+│
+├── .agents/
+│   └── skills/
+│       └── learn-like-a-pro/                      ← 本 Skill 的根目录
+│           │
+│           ├── SKILL.md                           ← 【核心】主 Skill 文件（~591行）
+│           │                                       // 首次学习时加载，包含完整六步工作流
+│           │                                       // 角色定义、触发条件、状态管理、示例对话等
+│           │
+│           ├── README.md                          ← 用户使用文档（~260行）
+│           │                                       // 面向最终用户的功能说明、使用方法、产物介绍
+│           │
+│           ├── evals/
+│           │   ├── evals.json                     ← 6个测试用例（24条断言）
+│           │   │                                   // beginner-ai-agent-learning
+│           │   │                                   // first-skill-creation
+│           │   │                                   // lost-and-confused-user
+│           │   │                                   // resume-continue-learning
+│           │   │                                   // no-filesystem-fallback
+│           │   │                                   // multi-turn-full-journey（v1.2 新增）
+│           │   └── files/
+│           │       └── ai-agent/                  ← eval 4 续接场景的输入 fixture
+│           │           ├── state.json             ← 模拟 my_learning/ai-agent/state.json（含 needs_review 单元）
+│           │           └── notes.md               ← 模拟已有学习笔记
+│           │
+│           └── references/
+│               │
+│               ├── resume.md                      ← 【核心】续接学习精简指令（~207行）
+│               │                                   // 续接时加载，保留核心教学规则
+│               │                                   // 去掉示例对话和详细场景说明
+│               │
+│               └── templates/                     ← 产物模板目录
+│                   ├── state.json                 ← 学习状态模板（含 topic_slug、needs_review 枚举）
+│                   ├── notes.md                   ← 学习笔记模板（36行）
+│                   ├── cheatsheet.md              ← 速查卡模板（16行）
+│                   ├── quiz.md                    ← 自测题模板（56行）
+│                   ├── next-steps.md              ← 下一步指引模板（20行）
+│                   └── glossary.md                ← 术语表模板（6行）
+│
+├── learn-like-a-pro-workspace/                    ← 【eval 产物】skill-creator 评估工作区（v1.2）
+│   └── iteration-1/
+│       ├── eval-1-beginner-ai-agent-learning/     ← 每个 eval 一个目录
+│       │   ├── with_skill/run-1/                  ← with_skill 运行（outputs/ + grading.json）
+│       │   ├── without_skill/run-1/               ← baseline 运行（outputs/ + grading.json）
+│       │   └── eval_metadata.json                 ← 该 eval 的 prompt + 断言
+│       ├── benchmark.json / benchmark.md          ← 聚合结果（with 100% vs without 83.4%）
+│       └── review.html                            ← 可视化报告
+│
+└── my_learning/                                   ← 【运行时生成】用户学习产物目录
+    ├── ai-agent/                                  ← AI Agent 学习产物（目录名英文 kebab-case）
+    │   ├── state.json                             ← 实时学习状态（topic 存中文名，topic_slug 与目录一致）
+    │   ├── notes.md                               ← 学习笔记（追加更新）
+    │   ├── cheatsheet.md                          ← 速查卡（追加更新）
+    │   ├── quiz.md                                ← 自测题（追加更新）
+    │   ├── next-steps.md                          ← 下一步指引（覆盖更新）
+    │   └── glossary.md                            ← 术语表（追加更新）
+    │
+    ├── python/                                    ← Python 学习产物
+    │   └── ...
+    │
+    └── markdown/                                  ← Markdown 学习产物
+        └── ...
+```
+
+---
+
+## 8. 使用方法
+
+### 8.1 安装
+
+**方法 1：直接复制**
+
+```bash
+# 将 learn-like-a-pro 目录复制到你的项目 .agents/skills/ 下
+cp -r learn-like-a-pro /your-project/.agents/skills/
+```
+
+**方法 2：使用 skills CLI**
+
+```bash
+npx skills add /path/to/learn-like-a-pro -y
+```
+
+### 8.2 首次学习流程
+
+1. 用户说："我想学 AI Agent，我是小白"
+2. AI 加载完整 `SKILL.md`（~591 行）
+3. 走六步流程：
+   - ① 诊断起点（5 问）
+   - ② 构建学习地图（5-10 个单元）
+   - ③ 知识构建（Motivation → Analogy → Intuition → Definition）
+   - ④ 动手实践
+   - ⑤ 主动回忆测试（3 题）
+   - ⑥ 生成产物 + 创建 `state.json`
+
+### 8.3 续接学习流程
+
+1. 用户说："继续学 AI Agent"
+2. AI 加载 `references/resume.md`（~201 行）+ `my_learning/ai-agent/state.json`（~30 行）
+3. 问用户："上次学到第 X 单元，继续吗？"
+4. 用户确认 → 直接从第三步「知识构建」开始教下一个单元
+5. 完成后更新产物 + 更新 `state.json`
+
+### 8.4 跨 Agent 复用
+
+- 任何 Agent 读取 `my_learning/<主题>/notes.md` → 了解学习笔记
+- 读取 `glossary.md` → 了解术语定义
+- 读取 `state.json` → 了解精确进度
+- 加载 `resume.md` + `state.json` → 直接续接学习
+
+---
+
+## 9. 版本演进
+
+| 版本 | 时间 | 变更内容 |
+|------|------|---------|
+| v0.1 | 2026-08-07 | 用户原始 `skills.md`，143 行，基础六步流程 |
+| v0.5 | 2026-08-07 | 参照 7 个参考 Skill，编写完整 `SKILL.md`（~630 行），包含角色定义、苏格拉底检验、支架 Fading、示例对话、特殊场景 |
+| v0.6 | 2026-08-07 | 加入状态管理机制（`state.json`）、产物模板、测试用例（`evals.json`） |
+| v0.7 | 2026-08-07 | 创建 `references/resume.md`（精简续接指令，~200 行） |
+| v0.8 | 2026-08-07 | 用户质疑轻量化问题，将续接逻辑从"只读 state.json"优化为"resume.md + state.json"双文件 |
+| **v1.0** | **2026-08-10** | **最终版本，编写项目级 README.md（本文件），记录完整开发历程、设计决策、文件说明** |
+| **v1.1** | **2026-08-10** | **grill-with-docs 盘问 + skill-creator 评估后迭代**：① `state.json` 新增 `needs_review` 状态（卡住/测试未通过时标记，`current_unit_index` 不推进，续接时优先重学）；② 新增 `topic_slug` 字段，主题目录统一英文 kebab-case；③ 产物生成增加环境 fallback（无文件系统权限时输出完整文本）；④ 触发条件补充续接触发词；⑤ 澄清"全模型演示 ≠ 给答案"；⑥ 时间不足时地图只展示 1-2 个单元；⑦ 会话结束模板条件化 |
+| **v1.2** | **2026-08-10** | **完整 eval 闭环（skill-creator 方法论 + Python 3.12）**：搭建 12 场景 60 断言的 evals；子代理跑 with_skill vs baseline 对比；grader 评分 + 聚合 + viewer。**iteration-1**：发现并修复"断言与单轮首答错配"；新增 ADR-005~009。**iteration-2**：eval 2 断言加严；新增 eval 6 多轮对话。**iteration-3**：新增 eval 7/8 换主题验证、eval 9 内容正确性正向检查；"动手实践"新增非技术主题适配规则。**iteration-4**：新增 eval 10 长对话耐力测试（15 轮，规则漂移被 skill 防住）。**iteration-5**：新增 eval 11/12 资料驱动学习（能读 5/5 vs 3/5，读不了双方 4/4）；SKILL.md/resume.md 新增"资料驱动学习"工作流；**最终基准 with_skill 100% vs baseline 74.4%（Δ +25.6%）** |
+
+---
+
+## 附录：工作区清理记录
+
+### 已删除的废案/多余文件
+
+| 文件/目录 | 类型 | 删除原因 |
+|-----------|------|---------|
+| `skills-learning-analysis.md`（30KB） | 中间产物 | 调研 7 个参考 Skill 的对比文档，开发阶段用，项目完成后不再需要 |
+| `skills-lock.json` | 临时文件 | 安装参考 Skill 时生成的锁文件，记录已安装 Skill 的哈希值 |
+| `.reasonix/` 整个目录 | 工具自动生成 | 包含话题元数据、符号链接、会话历史日志，非项目文件 |
+
+### 保留的文件
+
+```
+<项目根>/
+├── .agents/
+│   └── skills/
+│       ├── learn-like-a-pro/          ← 最终项目 ✅
+│       ├── domain-modeling/           ← 参考 Skill ✅
+│       ├── grill-with-docs/           ← 参考 Skill ✅
+│       ├── mentoring-juniors/         ← 参考 Skill ✅
+│       ├── obsidian-notes-creator/    ← 参考 Skill ✅
+│       ├── self-learning/             ← 参考 Skill ✅
+│       ├── skill-creator/             ← 参考 Skill ✅
+│       ├── socratic-teaching-scaffolds/ ← 参考 Skill ✅
+│       ├── find-skills/               ← 参考 Skill ✅
+│       ├── learn-like-a-pro.skill     ← 打包产物 ✅
+│       └── pack_skill.py              ← 打包脚本 ✅
+│
+├── skills.md                          ← 用户原始手写版本 ✅
+└── README.md                          ← 项目级开发日志 ✅
+```
+
+---
+
+## 附录：参考 Skill 完整信息
+
+| Skill | 作者 | 来源 | 核心理念 |
+|-------|------|------|---------|
+| grill-with-docs | Matt Pocock | skills 社区 | 边对话边产出文档 |
+| domain-modeling | Matt Pocock | skills 社区 | 术语表实时维护、知识资产沉淀 |
+| skill-creator | Anthropic | 官方标准 | YAML frontmatter 规范、渐进式披露、迭代评估 |
+| mentoring-juniors | GitHub Awesome Copilot | skills 社区 | Sensei 角色、苏格拉底五阶段、PEAR 循环 |
+| obsidian-notes-creator | Szeyu | skills 社区 | 直觉优先写作、类比模式、质量检查 |
+| socratic-teaching-scaffolds | LyndonKL | skills 社区 | 问题阶梯、支架 Fading、最近发展区 |
+| self-learning | Phil Schmid | skills 社区 | 自主探索引导、来源追溯 |
+
+---
+
+> **最后更新**：2026-08-10  
+> **项目路径**：`.agents/skills/learn-like-a-pro/`（相对仓库根）  
+> **作者**：基于用户原始需求，由 AI 辅助设计与实现  
+> **License**：MIT

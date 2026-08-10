@@ -1,0 +1,30 @@
+{
+  "topic": "[中文主题名称，如 'AI Agent']",
+  "topic_slug": "[英文kebab-case目录名，如 'ai-agent'，与目录 my_learning/ai-agent/ 保持一致]",
+  "created_at": "[首次学习时间，ISO 8601格式]",
+  "last_updated": "[最后更新时间，ISO 8601格式]",
+  "current_unit_index": 0,
+  "total_units": 0,
+  "units": [
+    {
+      "name": "[单元名称]",
+      "status": "[pending | in_progress | completed | needs_review]",
+      "status_note": "（创建实际状态文件时删除本字段；needs_review=需重学，卡住3次或测试0-1题对时使用，此时 current_unit_index 不推进）",
+      "mastered": false,
+      "last_session": "[ISO 8601格式或null]"
+    }
+  ],
+  "diagnosis": {
+    "current_knowledge": "",
+    "goal": "",
+    "time_available": "",
+    "preference": ""
+  },
+  "products_version": 1,
+  "session_history": [
+    {
+      "timestamp": "[ISO 8601格式]",
+      "units_covered": [0]
+    }
+  ]
+}

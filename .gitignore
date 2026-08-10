@@ -1,0 +1,11 @@
+# === 开源仓库忽略规则 ===
+
+# Reasonix 本地运行时数据（含子代理会话存档、自动标题缓存，勿公开）
+.reasonix/
+
+# eval 测试产物（含 AI 对话记录）
+learn-like-a-pro-workspace/
+
+# 第三方 skills（不属于本项目，各自有独立许可证）
+.agents/skills/*
+!.agents/skills/learn-like-a-pro/
