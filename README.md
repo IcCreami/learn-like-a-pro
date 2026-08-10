@@ -18,7 +18,7 @@
 | **使用** | 对你的 AI 说："**我想学 XXX，我是零基础**" 或 "**教我 XXX**"——Skill 自动激活 |
 | **续接学习** | 说 "**继续学 XXX**"，它会读取 `state.json` 接着上次的进度教 |
 | **发资料学习** | 直接发文件或网址："**我找到一份学 XXX 的资料，带我学**" |
-| **跑测试（开发者）** | `evals/evals.json` 定义了 12 个场景 60 条断言；运行器依赖 skill-creator 工具链（不在本仓库内），详见第 6 章 |
+| **跑测试（开发者）** | `evals/evals.json` 定义了 13 个场景 68 条断言；运行器依赖 skill-creator 工具链（不在本仓库内），详见第 6 章 |
 
 > 📖 **你是使用者**：读上面 5 行 + 第 1、8 章就够了。
 > 📖 **你是维护者**：第 2-7 章是完整开发日志（迭代过程、eval 对比、ADR 设计决策），记录了每一步为什么这么设计。
@@ -445,6 +445,14 @@ AI：先不急着讲概念，让我了解你一下（诊断5问）
 - **原因**：用户偏好"在我学的时候专注于解决现在的学习问题"，不希望被每日进度绑定
 - **后果**：state.json 不需要 `next_review_at` 字段，状态模型保持轻量
 
+#### ADR-010：诊断自适应追问（v1.3 新增）
+
+- **决策**：诊断从固定 5 问扩展为「基础 5 问 + 实践型主题追加 4 问」（第 6 问上手程度 / 第 7 问设备环境与工具 / 第 8 问产物想象 / 第 9 问类型偏好）；「实践型主题」= 学完产物是一个能跑/能用的东西（做游戏、写网站、写脚本、做 App）。
+- **背景**：讨论"用本 skill 教小白开发轻量级游戏是否可行"时发现，项目型学习比概念学习多两个致命变量——**工具选型**与**环境搭建**。固定 5 问不关心这些，导致地图拆解和技术栈全靠 AI 临场猜。
+- **决策细节**：每条追加问题标注"它在决定什么"（地图/工具/产物形态），追问不空转；工具选型（第 7 问）必问——选错工具是项目型学习劝退的第一大原因；用户在前 5 问已顺带回答时可合并跳过（弹性规则）。
+- **代价**：实践型主题的诊断多 2-4 轮对话。可接受——多问的两轮换来整条学习路径的确定性。
+- **验证**：iteration-6（eval 13「实践型主题诊断」，with_skill 8/8 vs baseline 6/8）。
+
 ---
 
 ## 5.3 eval 评估闭环（v1.2 新增）
@@ -671,6 +679,39 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 **iteration-5 新遗留**：
 - [ ] eval 11 的"以资料为核心教学"断言证据要求偏弱（开场白可表面满足），可要求"按资料结构组织教学"
 - [ ] eval 12 可加断言验证"第三条路（不靠资料直接开课）"是否被提供
+
+### iteration-6：诊断增强 + 实践型主题适配（v1.3 追加）
+
+> 用户需求："用这个 skill 教小白开发一款轻量级游戏可行吗？"分析确认可行（实践导向 + 产物明确 + 需要续接），但暴露出 skill 的一个空白：**诊断 5 问对"项目型"主题覆盖不足**——不关心工具选型、不关心环境、不关心最终产物形态，而这些恰恰是游戏开发劝退的头号原因。
+
+**据此改进（v1.3）**：
+- 诊断扩展为「基础 5 问 + 实践型主题追加 4 问」：上手程度、设备与环境、产物想象、类型偏好（ADR-010）；每问标注"它在决定什么"，工具选型必问
+- 苏格拉底检验新增「实践/项目型」提问示例（游戏边缘情况思维预演）
+- 教学节奏明文化为「讲 → 验 → 练 → 测」四拍，每拍至少 1 次提问互动
+- 学习地图新增「贪吃蛇」实践型示例（环境搭建作为第 1 个单元）
+
+**验证（新增 eval 13「实践型主题诊断」，5 轮多轮）**：
+
+| 指标 | with_skill | baseline |
+|------|-----------|----------|
+| eval 13 通过 | **8/8** | **6/8** |
+
+**baseline 差在哪**（这正是 skill 防住的东西）：
+- baseline 让小白**装 VS Code + 配环境**（重安装路线），没有任何零安装/轻安装替代方案——"选错工具劝退"现场版
+- baseline 对话全程未进入类比教学（5 轮都在装环境），`类比先行`断言 FAIL
+- with_skill 走「确认经验 → p5.js 零安装方案 → 环境搭建为第 1 单元的贪吃蛇地图 → 类比先行开讲」
+
+**评估中发现并修正的断言**：
+- `environment_tools_asked` 收紧：只推荐安装类工具且无零安装替代 → 判 FAIL（初版 OR 条件过宽，"装"字即过）
+- `experience_asked` 修正：用户已主动说明经验时，"确认+利用"（复述 + 据此调整起点）算通过——与追问弹性规则一致，不惩罚正确行为
+
+**iteration-2 完整基准（13 eval，68 断言）**：
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100%** | **75%**（仅复跑 eval 13） | **+0.25** |
+
+> 注：baseline 仅复跑新增的 eval 13；iteration-1 的 12 eval 基准（100% vs 74.4%）仍有效，13 个 eval 的 with_skill 全过说明诊断增强未破坏原有任何场景。
 
 ---
 
@@ -952,7 +993,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 
 #### `evals/evals.json` — 测试用例
 
-**作用**：12 个测试场景（60 条断言），用于验证 Skill 质量。
+**作用**：13 个测试场景（68 条断言），用于验证 Skill 质量。
 
 **结构**：
 
@@ -976,7 +1017,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 }
 ```
 
-**12 个场景**：
+**13 个场景**：
 
 | # | 场景 | 测试重点 |
 |---|------|---------|
@@ -992,8 +1033,9 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 | 10 | 长对话·15 轮耐力测试（Python，iteration-4 新增） | 验证规则是否随对话变长而漂移 |
 | 11 | 资料驱动学习（用户发 Git 资料，iteration-5 新增） | 读取资料→基于资料教学→指出资料缺口 |
 | 12 | 资料读不了的环境（iteration-5 新增） | 诚实告知、粘贴 fallback、不编造 |
+| 13 | 实践型主题诊断（做贪吃蛇游戏，iteration-6 新增） | 基础 5 问后追加 6-9 问（经验/环境/产物想象/类型）、零安装方案选型、环境搭建为第 1 单元 |
 
-（v1.1 起由 3 个扩展为 5 个；v1.2 经完整 eval 闭环增至 12 个——iteration-2 新增多轮对话、iteration-3 新增换主题与内容正确性、iteration-4 新增长对话耐力测试、iteration-5 新增资料驱动学习；断言经 eval 闭环修正为符合交互式教学的单轮现实——详见 5.3 节）
+（v1.1 起由 3 个扩展为 5 个；v1.2 经完整 eval 闭环增至 12 个——iteration-2 新增多轮对话、iteration-3 新增换主题与内容正确性、iteration-4 新增长对话耐力测试、iteration-5 新增资料驱动学习；v1.3 增至 13 个——iteration-6 新增实践型主题诊断；断言经 eval 闭环修正为符合交互式教学的单轮现实——详见 5.3 节）
 
 ---
 
@@ -1017,7 +1059,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │           │                                       // 面向最终用户的功能说明、使用方法、产物介绍
 │           │
 │           ├── evals/
-│           │   ├── evals.json                     ← 12个测试用例（60条断言）
+│           │   ├── evals.json                     ← 13个测试用例（68条断言）
 │           │   │                                   // beginner-ai-agent-learning
 │           │   │                                   // first-skill-creation
 │           │   │                                   // lost-and-confused-user
@@ -1030,6 +1072,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │           │   │                                   // long-multi-turn-15-rounds
 │           │   │                                   // material-driven-learning
 │           │   │                                   // material-unreadable-fallback
+│           │   │                                   // practice-project-diagnosis（v1.3 新增）
 │           │   └── files/
 │           │       └── ai-agent/                  ← eval 4 续接场景的输入 fixture
 │           │           ├── state.json             ← 模拟 my_learning/ai-agent/state.json（含 needs_review 单元）
@@ -1109,7 +1152,7 @@ npx skills add learn-like-a-pro.skill -y
 1. 用户说："我想学 AI Agent，我是小白"
 2. AI 加载完整 `SKILL.md`（~591 行）
 3. 走六步流程：
-   - ① 诊断起点（5 问）
+   - ① 诊断起点（基础 5 问；实践型主题追加 6-9 问）
    - ② 构建学习地图（5-10 个单元）
    - ③ 知识构建（Motivation → Analogy → Intuition → Definition）
    - ④ 动手实践
@@ -1145,6 +1188,7 @@ npx skills add learn-like-a-pro.skill -y
 | **v1.0** | **2026-08-10** | **最终版本，编写项目级 README.md（本文件），记录完整开发历程、设计决策、文件说明** |
 | **v1.1** | **2026-08-10** | **grill-with-docs 盘问 + skill-creator 评估后迭代**：① `state.json` 新增 `needs_review` 状态（卡住/测试未通过时标记，`current_unit_index` 不推进，续接时优先重学）；② 新增 `topic_slug` 字段，主题目录统一英文 kebab-case；③ 产物生成增加环境 fallback（无文件系统权限时输出完整文本）；④ 触发条件补充续接触发词；⑤ 澄清"全模型演示 ≠ 给答案"；⑥ 时间不足时地图只展示 1-2 个单元；⑦ 会话结束模板条件化 |
 | **v1.2** | **2026-08-10** | **完整 eval 闭环（skill-creator 方法论 + Python 3.12）**：搭建 12 场景 60 断言的 evals；子代理跑 with_skill vs baseline 对比；grader 评分 + 聚合 + viewer。**iteration-1**：发现并修复"断言与单轮首答错配"；新增 ADR-005~009。**iteration-2**：eval 2 断言加严；新增 eval 6 多轮对话。**iteration-3**：新增 eval 7/8 换主题验证、eval 9 内容正确性正向检查；"动手实践"新增非技术主题适配规则。**iteration-4**：新增 eval 10 长对话耐力测试（15 轮，规则漂移被 skill 防住）。**iteration-5**：新增 eval 11/12 资料驱动学习（能读 5/5 vs 3/5，读不了双方 4/4）；SKILL.md/resume.md 新增"资料驱动学习"工作流；**最终基准 with_skill 100% vs baseline 74.4%（Δ +25.6%）** |
+| **v1.3** | **2026-08-10** | **针对实践/项目型主题（如教小白做游戏）的诊断与对话增强**：① 诊断扩展为基础 5 问 + 实践型追加 4 问（上手程度/设备环境/产物想象/类型偏好，ADR-010）；② 苏格拉底检验新增实践型提问示例；③ 教学节奏明文化为「讲→验→练→测」四拍；④ 学习地图新增贪吃蛇示例（环境搭建=第 1 个单元）；⑤ 新增 eval 13 实践型主题诊断（with_skill 8/8 vs baseline 6/8）；⑥ 修正 skill README 场景数字 6→13；**iteration-2 基准 with_skill 13 eval 68 断言 100%** |
 
 ---
 

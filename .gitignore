@@ -9,3 +9,6 @@ learn-like-a-pro-workspace/
 # 第三方 skills（不属于本项目，各自有独立许可证）
 .agents/skills/*
 !.agents/skills/learn-like-a-pro/
+
+# 初始需求草稿（正式版见 .agents/skills/learn-like-a-pro/SKILL.md；仅保留本地）
+skills.md
