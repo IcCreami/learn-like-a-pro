@@ -952,7 +952,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 
 #### `evals/evals.json` — 测试用例
 
-**作用**：5 个测试场景，用于验证 Skill 质量。
+**作用**：12 个测试场景（60 条断言），用于验证 Skill 质量。
 
 **结构**：
 
@@ -976,7 +976,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 }
 ```
 
-**6 个场景**：
+**12 个场景**：
 
 | # | 场景 | 测试重点 |
 |---|------|---------|
@@ -985,9 +985,15 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 | 3 | 迷茫不知道学什么 | 情绪支持、兴趣发现、不过早推荐 |
 | 4 | 续接学习（"继续学 AI Agent"） | 检测 state.json、确认进度、跳过重复诊断、needs_review 优先重学 |
 | 5 | 无文件系统环境的产物 fallback | 承诺 fallback 机制、告知保存路径、教学不中断 |
-| 6 | 多轮完整教学对话（v1.2 新增） | 完整教学链：诊断→地图→类比先行→苏格拉底检验→主动回忆（6 轮对话转写） |
+| 6 | 多轮完整教学对话（iteration-2 新增） | 完整教学链：诊断→地图→类比先行→苏格拉底检验→主动回忆（6 轮对话转写） |
+| 7 | 多轮对话·换技术主题（Python，iteration-3 新增） | 验证教学纪律与主题无关 |
+| 8 | 多轮对话·非技术主题（历史，iteration-3 新增） | 验证非技术主题适配，实践因地制宜 |
+| 9 | 内容正确性（Git commit，iteration-3 新增） | 验证 AI 教的概念与官方语义一致 |
+| 10 | 长对话·15 轮耐力测试（Python，iteration-4 新增） | 验证规则是否随对话变长而漂移 |
+| 11 | 资料驱动学习（用户发 Git 资料，iteration-5 新增） | 读取资料→基于资料教学→指出资料缺口 |
+| 12 | 资料读不了的环境（iteration-5 新增） | 诚实告知、粘贴 fallback、不编造 |
 
-（v1.1 起由 3 个扩展为 5 个，v1.2 增至 6 个；断言经 eval 闭环修正为符合交互式教学的单轮现实，并新增多轮场景——详见 5.3 节）
+（v1.1 起由 3 个扩展为 5 个；v1.2 经完整 eval 闭环增至 12 个——iteration-2 新增多轮对话、iteration-3 新增换主题与内容正确性、iteration-4 新增长对话耐力测试、iteration-5 新增资料驱动学习；断言经 eval 闭环修正为符合交互式教学的单轮现实——详见 5.3 节）
 
 ---
 
@@ -1011,13 +1017,19 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │           │                                       // 面向最终用户的功能说明、使用方法、产物介绍
 │           │
 │           ├── evals/
-│           │   ├── evals.json                     ← 6个测试用例（24条断言）
+│           │   ├── evals.json                     ← 12个测试用例（60条断言）
 │           │   │                                   // beginner-ai-agent-learning
 │           │   │                                   // first-skill-creation
 │           │   │                                   // lost-and-confused-user
 │           │   │                                   // resume-continue-learning
 │           │   │                                   // no-filesystem-fallback
-│           │   │                                   // multi-turn-full-journey（v1.2 新增）
+│           │   │                                   // multi-turn-full-journey
+│           │   │                                   // multi-turn-python-teaching
+│           │   │                                   // multi-turn-history-teaching
+│           │   │                                   // content-correctness-commit
+│           │   │                                   // long-multi-turn-15-rounds
+│           │   │                                   // material-driven-learning
+│           │   │                                   // material-unreadable-fallback
 │           │   └── files/
 │           │       └── ai-agent/                  ← eval 4 续接场景的输入 fixture
 │           │           ├── state.json             ← 模拟 my_learning/ai-agent/state.json（含 needs_review 单元）
@@ -1079,6 +1091,17 @@ cp -r learn-like-a-pro /your-project/.agents/skills/
 
 ```bash
 npx skills add /path/to/learn-like-a-pro -y
+```
+
+**方法 3：`.skill` 安装包（从 GitHub Release 下载）**
+
+```bash
+# 1. 下载 learn-like-a-pro.skill（本质是 zip）
+# 2. 改名为 learn-like-a-pro.zip 并解压，得到 learn-like-a-pro/ 文件夹
+# 3. 复制到 skills 目录，或用 skills CLI 直接添加
+cp -r learn-like-a-pro /your-project/.agents/skills/
+# 或
+npx skills add learn-like-a-pro.skill -y
 ```
 
 ### 8.2 首次学习流程
