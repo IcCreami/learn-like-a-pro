@@ -48,10 +48,11 @@ learn-like-a-pro/
 ├── SKILL.md                          ← 【核心】教学指令（AI 靠它知道怎么教你）
 ├── README.md                         ← 本文件（面向使用者）
 ├── evals/
-│   ├── evals.json                    ← 13 个测试场景（验证 Skill 质量）
+│   ├── evals.json                    ← 14 个测试场景（验证 Skill 质量）
 │   └── files/ai-agent/               ← 测试用的模拟学习存档
 └── references/
     ├── resume.md                     ← 【核心】续接教学精简指令（保留教学规则、省 Token）
+    ├── skill-collab.md               ← 专业 skill 协作细节（按需加载）
     └── templates/                    ← 6 个产物模板
 ```
 

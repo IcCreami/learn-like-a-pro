@@ -756,6 +756,11 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 
 **结论**：新增场景 6 未破坏原有 13 个场景（with_skill 仍 100%）；拓展功能按需触发，不触发时零干扰（token 增量仅场景 6 正文约 +40 行；skill-collab.md 按需加载）。
 
+**iteration-8 遗留（eval 14 grader 反馈）**：
+- [ ] `capability_check` 断言只验证"提到 find-skills/安装"而非真实执行——模拟环境无法真装第三方 skill，属评估环境局限，如实记录
+- [ ] eval 14 prompt 的用户消息 2 预设了"你说可以帮我找"，但用户消息 1 并未实际说过 offer——对话衔接有小瑕疵，后续可改为消息 1 就包含不满意信号
+- [ ] 缺一条"专业 skill 讲完后教练必须检验"的分工核心断言——当前由 `constitution_clause` 间接覆盖，可考虑显式化
+
 ---
 
 ## 6. 文件总览与字段详解
@@ -1226,7 +1231,7 @@ npx skills add learn-like-a-pro.skill -y
 ### 8.3 续接学习流程
 
 1. 用户说："继续学 AI Agent"
-2. AI 加载 `references/resume.md`（~216 行）+ `my_learning/ai-agent/state.json`（~30 行）
+2. AI 加载 `references/resume.md`（~219 行）+ `my_learning/ai-agent/state.json`（~30 行）
 3. 问用户："上次学到第 X 单元，继续吗？"
 4. 用户确认 → 直接从第三步「知识构建」开始教下一个单元
 5. 完成后更新产物 + 更新 `state.json`
