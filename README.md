@@ -719,7 +719,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 
 ### 6.1 核心文件
 
-#### `SKILL.md`（~591 行）— 主 Skill 文件
+#### `SKILL.md`（~680 行）— 主 Skill 文件
 
 **作用**：完整的 AI 学习教练指令，首次学习时加载。
 
@@ -744,7 +744,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 - `name: learn-like-a-pro` — Skill 的唯一标识
 - `description` — 给 AI 看的激活指令，使用英文和 pushy 风格，明确列出所有触发条件
 
-#### `references/resume.md`（~201 行）— 续接学习精简指令
+#### `references/resume.md`（~216 行）— 续接学习精简指令
 
 **作用**：续接学习时加载，代替完整 SKILL.md，保留核心教学规则但去掉示例对话和详细场景。
 
@@ -1150,7 +1150,7 @@ npx skills add learn-like-a-pro.skill -y
 ### 8.2 首次学习流程
 
 1. 用户说："我想学 AI Agent，我是小白"
-2. AI 加载完整 `SKILL.md`（~591 行）
+2. AI 加载完整 `SKILL.md`（~680 行）
 3. 走六步流程：
    - ① 诊断起点（基础 5 问；实践型主题追加 6-9 问）
    - ② 构建学习地图（5-10 个单元）
@@ -1162,7 +1162,7 @@ npx skills add learn-like-a-pro.skill -y
 ### 8.3 续接学习流程
 
 1. 用户说："继续学 AI Agent"
-2. AI 加载 `references/resume.md`（~201 行）+ `my_learning/ai-agent/state.json`（~30 行）
+2. AI 加载 `references/resume.md`（~216 行）+ `my_learning/ai-agent/state.json`（~30 行）
 3. 问用户："上次学到第 X 单元，继续吗？"
 4. 用户确认 → 直接从第三步「知识构建」开始教下一个单元
 5. 完成后更新产物 + 更新 `state.json`
