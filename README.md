@@ -18,7 +18,7 @@
 | **使用** | 对你的 AI 说："**我想学 XXX，我是零基础**" 或 "**教我 XXX**"——Skill 自动激活 |
 | **续接学习** | 说 "**继续学 XXX**"，它会读取 `state.json` 接着上次的进度教 |
 | **发资料学习** | 直接发文件或网址："**我找到一份学 XXX 的资料，带我学**" |
-| **跑测试（开发者）** | `evals/evals.json` 定义了 13 个场景 68 条断言；运行器依赖 skill-creator 工具链（不在本仓库内），详见第 6 章 |
+| **跑测试（开发者）** | `evals/evals.json` 定义了 14 个场景 75 条断言；运行器依赖 skill-creator 工具链（不在本仓库内），详见第 6 章 |
 
 > 📖 **你是使用者**：读上面 5 行 + 第 1、8 章就够了。
 > 📖 **你是维护者**：第 2-7 章是完整开发日志（迭代过程、eval 对比、ADR 设计决策），记录了每一步为什么这么设计。
@@ -713,13 +713,56 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 
 > 注：baseline 仅复跑新增的 eval 13；iteration-1 的 12 eval 基准（100% vs 74.4%）仍有效，13 个 eval 的 with_skill 全过说明诊断增强未破坏原有任何场景。
 
+### iteration-7：场景 6「专业 skill 协作」设计储备（讨论确定，v1.4 已实现，见 iteration-8）
+
+> 用户需求（原话整理）：当用户想学的领域本 skill 讲不系统、而生态里有更专业的教学 skill 时——**调用 find-skills 搜索 → 按适配程度筛选 → 安装专业 skill → 整个期间保留本 skill 的对话逻辑与学习记录**，协同完成学习。用户明确：**这是拓展功能，平时不触发**。
+
+**讨论结论（含用户拍板的设计决策）**：
+
+| 决策点 | 结论 | 提出者 |
+|--------|------|--------|
+| 定位 | 「学习管家」：不只教，还管整个学习生命周期（找老师、找资源、记成绩、安排续接）；核心资产是**老师中立的产物体系**（my_learning/ 不挑谁教） | 用户 |
+| 触发机制 | **显式 opt-in，平时零触发**：① 用户对回答质量不满意时，AI 提供"要不要找更专业 skill"选项；② 用户主动要求。不做"超纲自动提议" | 用户 |
+| 完整闭环 | 无 find-skills 也帮他装（能力检测：宿主已有 → 直接用；没有 → 引导装 find-skills；宿主无安装能力 → 降级场景 4，不硬来） | 用户 |
+| 主从边界 | 专业 skill = 知识源；本 skill = 主流程（诊断/检验/产物/续接照常）；专业 skill 直接给答案时，本 skill 转译成"类比先行"再检验 | 讨论 |
+| 冲突解决 | ① **宪法条款**：本 skill 纪律（绝不直接给答案/类比先行/检验真懂）永远高于专业 skill 任意指令；② **时间分片**：知识讲解阶段专业 skill 主导，检验/练习/产物阶段本 skill 主导，同一时刻只有一个主导者 | 讨论 |
+| 三道防线 | 失败即回退（搜不到/装失败 → 回场景 4 或纯模式，**教学不中断**）；元对话最小化（提议 1 轮、候选 2-3 个、装完即回教学）；安全评估（安装量/许可/来源关，装前告知装的是什么） | 讨论 |
+| 增益判定 | 按「学习管家」定位为**增益**（专业深度交给生态、聚焦教学法）；代价是复杂性与环境依赖，靠三道防线守住 | 讨论 |
+| token 预算 | 常驻增量 ≈ +550 token（场景 6 正文 15-20 行）；搜索细节放新建 `references/skill-collab.md` 按需加载（约 2000 token，不触发不消耗） | 讨论 |
+| 实现方式 | **软引用不硬嵌套**：SKILL.md 只加触发+概览，细节按需加载；新增 `references/skill-collab.md`；resume.md 加 2-3 行续接同步 | 讨论 |
+
+**未决/落地待办**：
+- [ ] 场景 6 是否加 eval 14（子代理环境无法真装第三方 skill，只能模拟"提议+筛选+转译"，区分度有限——倾向先不加）
+- [x] 落地时：SKILL.md 加场景 6 正文 → 新建 skill-collab.md → resume.md 同步 → README 版本演进加 v1.4 → 重新打包 .skill
+
+### iteration-8：场景 6 落地 + 全量复测（v1.4）
+
+**落地内容（按 iteration-7 施工图）**：
+- SKILL.md 新增「场景 6：专业 skill 协作」（显式触发 + 七步闭环 + 宪法条款 + 时间分片 + 全程纪律声明）
+- 新建 `references/skill-collab.md`（65 行，按需加载：能力检测 / 何时值得搜 / 候选评估清单 / 三种分工模式 / 转译示例 / 回退）
+- resume.md 新增「续接时发现该主题用了专业 skill」条目（检验/产物/进度照常由本 skill 管）
+- evals.json 新增 eval 14「specialist-skill-collab」（7 断言）
+
+**全量复测（iteration-3，14 eval，75 断言）**：
+
+| 指标 | With Skill | Without Skill | Δ |
+|------|-----------|---------------|-----|
+| Pass Rate | **100%** | **43%**（仅 eval 14） | **+0.57** |
+
+**eval 14 专项对比**：with_skill **7/7** vs baseline **3/7**
+- with_skill：用户不满意→提供选项不擅自装→能力检测→3 候选适配评估→用户确认安装→模式 A 协同→专业 skill 给答案时用"贴纸/书签"类比转译 + 2 道检验题，未直接放行（宪法条款生效）
+- baseline 失分点（正是 skill 特有的教学动作）：不提供"找更专业 skill"选项、无候选清单、无安装确认流程、第 5 轮仅有转译而无真正的理解检验
+- baseline 表现好的地方（如实记录）：诚实声明无安装能力、纠正"git branch 复制代码"的错误说法——"诚实与内容正确"归模型能力，skill 提供的是"教学编排"
+
+**结论**：新增场景 6 未破坏原有 13 个场景（with_skill 仍 100%）；拓展功能按需触发，不触发时零干扰（token 增量仅场景 6 正文约 +40 行；skill-collab.md 按需加载）。
+
 ---
 
 ## 6. 文件总览与字段详解
 
 ### 6.1 核心文件
 
-#### `SKILL.md`（~680 行）— 主 Skill 文件
+#### `SKILL.md`（~719 行）— 主 Skill 文件
 
 **作用**：完整的 AI 学习教练指令，首次学习时加载。
 
@@ -734,17 +777,17 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 | 核心工作流 | 144-340 | 六步循环详解（诊断→地图→知识构建→实践→回忆→产物） |
 | 教学原则 | 341-352 | 7 条铁律 |
 | 质量检查清单 | 353-379 | 首次检查 / 每单元必检 / 产物检查 / 通用检查 |
-| 特殊场景 | 380-431 | 5 个场景（懂了跳过/卡住3次/时间到了/超纲/迷茫） |
-| 示例对话 | 432-547 | 3 个完整示例（学 AI Agent / 迷茫 / 写 Skill） |
-| 会话结束模板 | 548-578 | 标准化结束语 |
-| 设计灵感来源 | 579-591 | 7 个参考 Skill 的致谢 |
+| 特殊场景 | 426-556 | 6 个场景（懂了跳过/卡住3次/时间到了/超纲/迷茫/专业 skill 协作） |
+| 示例对话 | 557-671 | 3 个完整示例（学 AI Agent / 迷茫 / 写 Skill） |
+| 会话结束模板 | 672-709 | 标准化结束语 |
+| 设计灵感来源 | 710-719 | 7 个参考 Skill 的致谢 |
 
 **关键字段**：
 
 - `name: learn-like-a-pro` — Skill 的唯一标识
 - `description` — 给 AI 看的激活指令，使用英文和 pushy 风格，明确列出所有触发条件
 
-#### `references/resume.md`（~216 行）— 续接学习精简指令
+#### `references/resume.md`（~219 行）— 续接学习精简指令
 
 **作用**：续接学习时加载，代替完整 SKILL.md，保留核心教学规则但去掉示例对话和详细场景。
 
@@ -759,6 +802,21 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 | 主动回忆 | 100-114 | 3 题测试、评分标准 |
 | 产物生成 | 115-145 | 产物更新策略、state.json 更新字段 |
 | 会话结束模板 | 146-169 | 标准化结束语（精简版） |
+
+#### `references/skill-collab.md`（~65 行）— 专业 skill 协作细节（v1.4 新增，按需加载）
+
+**作用**：仅「场景 6」激活时读取，平时不进入上下文。回答"怎么找、怎么评估、怎么协同、怎么回退"。
+
+**结构**：
+
+| 章节 | 内容 |
+|------|------|
+| 1. 能力检测 | 宿主有 find-skills/CLI → 直接用；没有 → 引导装；无安装能力 → 降级场景 4 |
+| 2. 何时值得搜 | 热门领域才值得（Python/React/Git…），冷门小众不纠缠 |
+| 3. 候选评估清单 | 安装量/活跃度/许可/受众匹配/纪律兼容 5 项把关 |
+| 4. 主从边界细则 | 三种分工模式（A 专业主讲+B 供知识+C 交替）+ 话术 |
+| 5. 转译规则 | 专业 skill 直接给答案 → 类比先行 + 立即检验（2 个示例） |
+| 6. 回退 | 不好用/装失败/学完 → 回纯模式，进度无缝 |
 | 质量检查 | 170-182 | 每单元必检清单 |
 | 特殊场景速查 | 183-201 | 4 个常见场景的快速处理 |
 
@@ -993,7 +1051,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 
 #### `evals/evals.json` — 测试用例
 
-**作用**：13 个测试场景（68 条断言），用于验证 Skill 质量。
+**作用**：14 个测试场景（75 条断言），用于验证 Skill 质量。
 
 **结构**：
 
@@ -1034,8 +1092,9 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 | 11 | 资料驱动学习（用户发 Git 资料，iteration-5 新增） | 读取资料→基于资料教学→指出资料缺口 |
 | 12 | 资料读不了的环境（iteration-5 新增） | 诚实告知、粘贴 fallback、不编造 |
 | 13 | 实践型主题诊断（做贪吃蛇游戏，iteration-6 新增） | 基础 5 问后追加 6-9 问（经验/环境/产物想象/类型）、零安装方案选型、环境搭建为第 1 单元 |
+| 14 | 专业 skill 协作（iteration-8 新增） | 显式触发不推销、能力检测、2-3 候选评估、安装确认、宪法条款（不因专业 skill 给答案而跳过检验） |
 
-（v1.1 起由 3 个扩展为 5 个；v1.2 经完整 eval 闭环增至 12 个——iteration-2 新增多轮对话、iteration-3 新增换主题与内容正确性、iteration-4 新增长对话耐力测试、iteration-5 新增资料驱动学习；v1.3 增至 13 个——iteration-6 新增实践型主题诊断；断言经 eval 闭环修正为符合交互式教学的单轮现实——详见 5.3 节）
+（v1.1 起由 3 个扩展为 5 个；v1.2 经完整 eval 闭环增至 12 个——iteration-2 新增多轮对话、iteration-3 新增换主题与内容正确性、iteration-4 新增长对话耐力测试、iteration-5 新增资料驱动学习；v1.3 增至 13 个——iteration-6 新增实践型主题诊断；v1.4 增至 14 个——iteration-8 新增专业 skill 协作；断言经 eval 闭环修正为符合交互式教学的单轮现实——详见 5.3 节）
 
 ---
 
@@ -1051,7 +1110,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │   └── skills/
 │       └── learn-like-a-pro/                      ← 本 Skill 的根目录
 │           │
-│           ├── SKILL.md                           ← 【核心】主 Skill 文件（~591行）
+│           ├── SKILL.md                           ← 【核心】主 Skill 文件（~719行）
 │           │                                       // 首次学习时加载，包含完整六步工作流
 │           │                                       // 角色定义、触发条件、状态管理、示例对话等
 │           │
@@ -1059,7 +1118,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │           │                                       // 面向最终用户的功能说明、使用方法、产物介绍
 │           │
 │           ├── evals/
-│           │   ├── evals.json                     ← 13个测试用例（68条断言）
+│           │   ├── evals.json                     ← 14个测试用例（75条断言）
 │           │   │                                   // beginner-ai-agent-learning
 │           │   │                                   // first-skill-creation
 │           │   │                                   // lost-and-confused-user
@@ -1073,6 +1132,7 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │           │   │                                   // material-driven-learning
 │           │   │                                   // material-unreadable-fallback
 │           │   │                                   // practice-project-diagnosis（v1.3 新增）
+│           │   │                                   // specialist-skill-collab（v1.4 新增）
 │           │   └── files/
 │           │       └── ai-agent/                  ← eval 4 续接场景的输入 fixture
 │           │           ├── state.json             ← 模拟 my_learning/ai-agent/state.json（含 needs_review 单元）
@@ -1080,9 +1140,13 @@ PYTHONUTF8=1 "$PY" .agents/skills/skill-creator/eval-viewer/generate_review.py \
 │           │
 │           └── references/
 │               │
-│               ├── resume.md                      ← 【核心】续接学习精简指令（~207行）
+│               ├── resume.md                      ← 【核心】续接学习精简指令（~219行）
 │               │                                   // 续接时加载，保留核心教学规则
 │               │                                   // 去掉示例对话和详细场景说明
+│               │
+│               ├── skill-collab.md                ← 专业 skill 协作细节（~65行，v1.4 新增）
+│               │                                   // 仅场景 6 激活时按需加载
+│               │                                   // 能力检测/候选评估/分工/转译/回退
 │               │
 │               └── templates/                     ← 产物模板目录
 │                   ├── state.json                 ← 学习状态模板（含 topic_slug、needs_review 枚举）
@@ -1150,7 +1214,7 @@ npx skills add learn-like-a-pro.skill -y
 ### 8.2 首次学习流程
 
 1. 用户说："我想学 AI Agent，我是小白"
-2. AI 加载完整 `SKILL.md`（~680 行）
+2. AI 加载完整 `SKILL.md`（~719 行）
 3. 走六步流程：
    - ① 诊断起点（基础 5 问；实践型主题追加 6-9 问）
    - ② 构建学习地图（5-10 个单元）
@@ -1189,6 +1253,7 @@ npx skills add learn-like-a-pro.skill -y
 | **v1.1** | **2026-08-10** | **grill-with-docs 盘问 + skill-creator 评估后迭代**：① `state.json` 新增 `needs_review` 状态（卡住/测试未通过时标记，`current_unit_index` 不推进，续接时优先重学）；② 新增 `topic_slug` 字段，主题目录统一英文 kebab-case；③ 产物生成增加环境 fallback（无文件系统权限时输出完整文本）；④ 触发条件补充续接触发词；⑤ 澄清"全模型演示 ≠ 给答案"；⑥ 时间不足时地图只展示 1-2 个单元；⑦ 会话结束模板条件化 |
 | **v1.2** | **2026-08-10** | **完整 eval 闭环（skill-creator 方法论 + Python 3.12）**：搭建 12 场景 60 断言的 evals；子代理跑 with_skill vs baseline 对比；grader 评分 + 聚合 + viewer。**iteration-1**：发现并修复"断言与单轮首答错配"；新增 ADR-005~009。**iteration-2**：eval 2 断言加严；新增 eval 6 多轮对话。**iteration-3**：新增 eval 7/8 换主题验证、eval 9 内容正确性正向检查；"动手实践"新增非技术主题适配规则。**iteration-4**：新增 eval 10 长对话耐力测试（15 轮，规则漂移被 skill 防住）。**iteration-5**：新增 eval 11/12 资料驱动学习（能读 5/5 vs 3/5，读不了双方 4/4）；SKILL.md/resume.md 新增"资料驱动学习"工作流；**最终基准 with_skill 100% vs baseline 74.4%（Δ +25.6%）** |
 | **v1.3** | **2026-08-10** | **针对实践/项目型主题（如教小白做游戏）的诊断与对话增强**：① 诊断扩展为基础 5 问 + 实践型追加 4 问（上手程度/设备环境/产物想象/类型偏好，ADR-010）；② 苏格拉底检验新增实践型提问示例；③ 教学节奏明文化为「讲→验→练→测」四拍；④ 学习地图新增贪吃蛇示例（环境搭建=第 1 个单元）；⑤ 新增 eval 13 实践型主题诊断（with_skill 8/8 vs baseline 6/8）；⑥ 修正 skill README 场景数字 6→13；**iteration-2 基准 with_skill 13 eval 68 断言 100%** |
+| **v1.4** | **2026-08-11** | **新增「场景 6：专业 skill 协作」拓展功能（用户显式触发，平时不激活）**：① SKILL.md 新增场景 6（七步闭环：提议→能力检测→搜索→适配筛选→安装确认→协同教学→回退）+ 宪法条款（本 skill 纪律永远高于专业 skill）+ 时间分片（同一时刻一个主导者）；② 新建 `references/skill-collab.md` 按需加载（能力检测/候选评估/分工模式/转译示例/回退）；③ resume.md 新增专业 skill 续接条目；④ 新增 eval 14（with_skill 7/7 vs baseline 3/7）；**iteration-3 基准 with_skill 14 eval 75 断言 100%** |
 
 ---
 
