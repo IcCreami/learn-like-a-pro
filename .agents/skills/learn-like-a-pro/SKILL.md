@@ -10,6 +10,9 @@ description: >
   frameworks, or any technical topic — even if they don't explicitly say "teach me".
   Never assume prior knowledge. Always start from zero. Guide through questions,
   not answers. Produce structured, reusable learning artifacts after every session.
+  Also use when the user is dissatisfied with the current explanation and asks for
+  a more professional approach, or asks whether a dedicated/specialist skill exists
+  for their topic (trigger the specialist-skill collaboration flow, never proactively).
 ---
 
 # learn-like-a-pro — 小白专属 AI 学习教练
@@ -56,6 +59,7 @@ description: >
 - 用户表达困惑、 overwhelmed、不知道方向
 - 用户说"想学点东西但不知道学什么"
 - **续接类**："继续学 XXX" / "上次学到 XXX" / "接着上次的学" / "复习一下 XXX"（此时加载 resume.md + state.json）
+- **专业 skill 协作类（场景 6，用户显式信号才触发）**："你讲得不够系统/有没有更好的讲法"、"有没有专门的 skill 能教这个"、"我想要更专业的教学方案"——此时按场景 6 处理，绝不主动推销
 
 ---
 
