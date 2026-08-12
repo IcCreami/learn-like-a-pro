@@ -9,7 +9,7 @@
     {
       "name": "[单元名称]",
       "status": "[pending | in_progress | completed | needs_review]",
-      "status_note": "（创建实际状态文件时删除本字段；needs_review=需重学，卡住3次或测试0-1题对时使用，此时 current_unit_index 不推进）",
+      "status_note": "（创建实际状态文件时删除本字段；needs_review=需重学，卡住3次或测试0题对时使用，此时 current_unit_index 不推进）",
       "mastered": false,
       "last_session": "[ISO 8601格式或null]"
     }
@@ -20,7 +20,8 @@
     "time_available": "",
     "preference": ""
   },
-  "products_version": 1,
+  "teacher": "[当前主题聘请的专业教师skill名，无则null；协作结束可卸载但口碑保留在 my_learning/teachers.md]",
+  "products_version": 2,
   "session_history": [
     {
       "timestamp": "[ISO 8601格式]",

@@ -426,6 +426,105 @@
           "description": "全程未出现\"你错了\"、\"不对\"、\"你怎么连这都不懂\"；语气鼓励"
         }
       ]
+    },
+    {
+      "id": 15,
+      "name": "butler-role-specialist-hiring",
+      "prompt": "【多轮对话模拟·管家定位】你是一位 AI 学习管家（装有 learn-like-a-pro 技能）。以下是 6 条连续的用户消息（模拟：用户想学 Python，学习地图规划阶段你主动识别某个单元有更专业的老师，用户同意聘请）。请对每一条消息分别给出你的回复，把 6 轮完整的对话作为一个整体输出。\n\n用户消息 1：\"我想学 Python，我是小白。想学完后能自己写脚本整理文件。\"\n用户消息 2：\"我完全不懂，你先帮我诊断吧。\"\n用户消息 3：\"好，就按你拆的学习地图来，从第一个开始。\"\n用户消息 4：\"你说第 5 个单元（正则表达式）有更专业的老师？那帮我请一位吧。\"\n用户消息 5：\"装好了！那这个单元就听老师的。\"\n用户消息 6：\"刚才老师直接说：正则就是匹配文本的模式。那我懂了，继续吧。\"",
+      "expected_output": "管家定位：诊断+地图规划时主动识别专业领域并建议聘请（不硬讲、不编造）→ 用户同意后按 skill-collab 流程（查 teachers.md 口碑/搜索候选/确认安装）→ 分工模式 A（老师讲知识、管家负责检验/产物/进度）→ 老师直接给答案时转译+检验，不直接放行 → 更新 teachers.md 口碑",
+      "files": [],
+      "assertions": [
+        {
+          "name": "butler_role_declared",
+          "description": "体现了管家定位（\"我负责考和记\"、\"我帮你请\"、\"学习管家\"、\"管流程/管进度/管成果\"之一），而非把自己定位成全能老师"
+        },
+        {
+          "name": "teacher_suggested_at_planning",
+          "description": "学习地图规划阶段就主动识别专业单元并建议聘请（\"有更专业的老师\"、\"要不要我帮你请\"、\"这个单元有专业 skill\"之一），而不是等用户先提"
+        },
+        {
+          "name": "no_bluffing_deep_content",
+          "description": "对专业深度内容不硬讲不编造（\"我不硬讲\"、\"这块交给老师\"、\"我们一起查证\"、建议聘请/查证之一），没有假装自己是正则专家直接开讲"
+        },
+        {
+          "name": "reputation_check_or_assessment",
+          "description": "聘请前查了 teachers.md 口碑或做了评估（提到\"teachers.md\"、\"口碑\"、\"上次请过\"、\"安装量/活跃度/是否适合小白\"之一）"
+        },
+        {
+          "name": "user_confirms_install",
+          "description": "安装前征求用户明确确认（\"装这个可以吗\"、\"要装吗\"、\"确认安装\"之一），未擅自安装"
+        },
+        {
+          "name": "constitution_clause_kept",
+          "description": "用户消息 6 老师直接给答案时，没有直接放行\"对，继续\"，而是转译（\"说白了/就像\"类比或解释）并检验（\"你说说为什么/一句话\"之一）"
+        },
+        {
+          "name": "teachers_reputation_updated",
+          "description": "对话中承诺或体现了更新教师口碑（\"记到 teachers.md\"、\"记录老师表现\"、\"下次直接复用\"之一）"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "efficient-questioning",
+      "prompt": "【多轮对话模拟·提问效率】你是一位 AI 学习管家（装有 learn-like-a-pro 技能）。用户想学 Markdown，而且明确说自己打字慢、不想打很多字。以下是 5 条连续的用户消息。请对每一条消息分别给出你的回复，把 5 轮完整的对话作为一个整体输出。\n\n用户消息 1：\"我想学 Markdown，完全小白。另外我打字慢，不想回答很长的题，尽量让我少打字。\"\n用户消息 2：\"（选了 A）完全没听过。\"\n用户消息 3：\"（选了 B）想把笔记整理好。\"\n用户消息 4：\"好，开始第一个单元吧。\"\n用户消息 5：\"哦，标题用 #，加粗用 **。我感觉掌握了。\"",
+      "expected_output": "诊断用选项（A/B/C/D + 一句话）而非开放式长问题；一次只问 1 个；苏格拉底检验用判断题优先（AI 自评+用户确认）；产出型问题限一句话；不要求用户打大段文字",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnosis_choice_options",
+          "description": "诊断问题以选项形式给出（\"A. \"\"B. \"\"C. \"\"D. \"或\"点选\"、\"选一个\"之一），而非只抛开放式长问题"
+        },
+        {
+          "name": "one_question_at_a_time",
+          "description": "一次只问 1 个诊断问题（黄金规则 2），没有一次性抛出 5 个问题让用户一起答"
+        },
+        {
+          "name": "judgment_question_priority",
+          "description": "检验理解时用判断题/确认题优先（\"对吗\"、\"对不对\"、\"确认一下\"、\"我认为你已经理解\"之一），用户只需回\"对\"或一句话纠偏"
+        },
+        {
+          "name": "one_sentence_cap",
+          "description": "产出型问题明确限定\"一句话\"回答（\"一句话\"、\"一句话就行\"、\"简单说\"、\"不用太长\"之一），不要求写段落"
+        },
+        {
+          "name": "no_long_typing_demands",
+          "description": "未要求用户打大段文字（未出现\"请详细描述\"、\"写一大段\"、\"详细说说每个点\"等），尊重用户\"打字慢、少打字\"的诉求"
+        },
+        {
+          "name": "productive_question_kept",
+          "description": "仍保留至少 1 个用户产出型问题（\"用你自己的话说\"、\"总结一下\"、\"举个例子\"之一），没有因追求效率而完全取消用户表达"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "handbook-artifacts",
+      "prompt": "【产物形态验证】你是一位 AI 学习管家（装有 learn-like-a-pro 技能）。用户学完了 Git 的第 1 个单元（\"Git 是什么/为什么用\"），通过了检验和测试。用户问：\"今天学完了，我的学习成果存在哪？\"请回复用户，说明你的产物归档方式。",
+      "expected_output": "说明 v1.5 手册化产物：每主题一本《学习手册.md》（章节=单元，自测题在章节内、速查/术语在附录）+ state.json（进度）+ my_learning/index.md（总览）；不再提 6 个独立产物文件（notes/cheatsheet/quiz/next-steps/glossary）",
+      "files": [],
+      "assertions": [
+        {
+          "name": "handbook_mentioned",
+          "description": "提到《学习手册》（\"学习手册\"、\"handbook\"之一）作为核心产物，说明章节=单元、自测/速查/术语都在这一本里"
+        },
+        {
+          "name": "index_mentioned",
+          "description": "提到跨主题总览（\"index.md\"、\"总览\"、\"仪表盘\"之一），说明各主题进度有统一入口"
+        },
+        {
+          "name": "state_json_kept",
+          "description": "提到 state.json 或\"进度文件\"（\"state.json\"、\"进度\"、\"状态文件\"之一），机器状态与人读手册分离"
+        },
+        {
+          "name": "no_old_six_products",
+          "description": "未把 notes.md / cheatsheet.md / quiz.md / next-steps.md / glossary.md 作为独立产物文件列出（v1.5 起已被学习手册吸收）——若按旧版列出 5-6 个文件即判定失败"
+        },
+        {
+          "name": "append_not_overwrite",
+          "description": "说明追加策略（\"追加\"、\"不覆盖\"、\"越学越厚\"之一），学习内容累积而非覆盖"
+        }
+      ]
     }
   ]
 }
